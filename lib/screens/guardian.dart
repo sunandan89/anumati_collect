@@ -21,7 +21,7 @@ class _GuardianScreenState extends State<GuardianScreen> {
   CaptureDraft get d => widget.draft;
   late final _name = TextEditingController(text: d.guardianName);
   late final _relation = TextEditingController(text: d.guardianRelation);
-  late final _phone = TextEditingController(text: d.guardianPhone);
+  late final _phone = TextEditingController(text: d.guardianPhone.isNotEmpty ? d.guardianPhone : d.phone);
   late final _authority = TextEditingController(text: d.guardianAuthorityRef);
 
   static const _types = {

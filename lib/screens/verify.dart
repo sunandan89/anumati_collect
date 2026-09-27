@@ -7,7 +7,6 @@ import '../capture/flow.dart';
 import '../core/strings.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
-import 'receipt.dart';
 
 /// M6 Verify (spec section 5, verification ladder): the methods that work
 /// from the phone, limited to what the programme allows.
@@ -38,11 +37,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
 
   Future<void> _save(AppState s) async {
     setState(() => _saving = true);
-    await s.saveConsent(d);
-    if (!mounted) return;
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => ReceiptScreen(draft: d)), (r) => r.isFirst);
+    await finishCapture(context, d);
   }
 
   @override

@@ -109,7 +109,17 @@ class CaptureDraft {
       if (!p.essential && !(choices[p.code] ?? false)) p.code,
   ];
 
-  bool get evidenceReady => attested && (selfChosen || ((voice != null || thumb != null) && witness.trim().isNotEmpty));
+  /// A verified guardian (SMS code or ID/order photo) already proves who consented, so guardian flows
+  /// need no separate witness; assisted adult consent needs evidence plus a witness (spec section 5).
+  bool get evidenceReady {
+    if (!attested) return false;
+    if (selfChosen) return true;
+    if (needsGuardian) return guardianVerified || guardianDoc != null || voice != null || thumb != null;
+    return (voice != null || thumb != null) && witness.trim().isNotEmpty;
+  }
+
+  /// The guardian's SMS code already verified the phone: don't ask again on the Verify step.
+  bool get verifiedByGuardian => needsGuardian && guardianVerify == 'sms' && guardianVerified;
 
   String get captureMode {
     if (flags['minor']!) return 'guardian_minor';

@@ -1,4 +1,5 @@
 import 'package:anumati_collect/capture/draft.dart';
+import 'package:anumati_collect/capture/flow.dart';
 import 'package:anumati_collect/core/receipt_code.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -80,5 +81,20 @@ void main() {
     expect(d.verificationStatus, 'recorded');
     d.verifyMethod = 'evidence_only';
     expect(d.verificationStatus, 'evidence_only');
+  });
+
+  test('guardian verified by SMS: no witness needed and the phone is not verified twice', () {
+    final d = draft()
+      ..flags['minor'] = true
+      ..guardianVerify = 'sms'
+      ..attested = true;
+    expect(d.evidenceReady, isFalse, reason: 'guardian not verified yet');
+    d.guardianVerified = true;
+    expect(d.evidenceReady, isTrue, reason: 'a verified guardian needs no separate witness');
+    expect(d.verifiedByGuardian, isTrue);
+    expect(flowSteps(d), isNot(contains('verify')));
+    expect(flowSteps(d).last, 'evidence');
+    final adult = draft();
+    expect(flowSteps(adult).last, 'verify');
   });
 }
