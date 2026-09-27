@@ -42,19 +42,28 @@ class SdkServer implements Server {
     try {
       final body = await _api.call(method, args: args, httpMethod: get ? 'GET' : 'POST');
       return body is Map ? body['message'] : body;
-    } on AuthException catch (e) {
-      throw ServerFailure(Failure.auth, e.message);
-    } on NetworkException catch (e) {
-      throw ServerFailure(Failure.offline, e.message);
-    } on ApiException catch (e) {
-      final code = e.statusCode ?? 0;
-      if (code >= 500 || code == 0 || code == 429) {
-        throw ServerFailure(Failure.offline, e.message);
-      }
-      throw ServerFailure(Failure.rejected, e.message);
-    } on SocketException catch (e) {
-      throw ServerFailure(Failure.offline, e.message);
+    } catch (e) {
+      throw classify(e);
     }
+  }
+
+  /// Map any SDK or socket error to what sync should do with it. A 417 is
+  /// Frappe's ValidationError (the server refused the record, e.g. a purpose
+  /// that isn't in the programme): park it. 5xx, 429 and network trouble:
+  /// try again later. 401/403: sign in again.
+  static ServerFailure classify(Object e) {
+    if (e is ServerFailure) return e;
+    if (e is AuthException) return ServerFailure(Failure.auth, e.message);
+    if (e is ValidationException) return ServerFailure(Failure.rejected, e.message);
+    if (e is NetworkException || e is SocketException || e is HttpException) {
+      return ServerFailure(Failure.offline, '$e');
+    }
+    if (e is FrappeException) {
+      final code = e.statusCode ?? 0;
+      if (code >= 500 || code == 0 || code == 429 || code == 408) return ServerFailure(Failure.offline, e.message);
+      return ServerFailure(Failure.rejected, e.message);
+    }
+    return ServerFailure(Failure.offline, '$e');
   }
 
   @override
@@ -144,12 +153,8 @@ class SdkServer implements Server {
         fields: {'is_private': '1', 'doctype': 'Data Principal', 'docname': principalName},
       );
       return ((body as Map)['message'] as Map)['file_url'] as String;
-    } on AuthException catch (e) {
-      throw ServerFailure(Failure.auth, e.message);
-    } on NetworkException catch (e) {
-      throw ServerFailure(Failure.offline, e.message);
-    } on ApiException catch (e) {
-      throw ServerFailure((e.statusCode ?? 0) >= 500 ? Failure.offline : Failure.rejected, e.message);
+    } catch (e) {
+      throw classify(e);
     }
   }
 

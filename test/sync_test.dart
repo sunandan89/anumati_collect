@@ -4,6 +4,8 @@ import 'package:anumati_collect/data/server.dart';
 import 'package:anumati_collect/data/store.dart';
 import 'package:anumati_collect/data/sync.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frappe_mobile_sdk/frappe_mobile_sdk.dart'
+    show ValidationException, AuthException, NetworkException, ApiException;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// A fake server that records calls and can fail on demand. Sample data is fictional.
@@ -247,5 +249,14 @@ void main() {
     expect((await store.search('MHU-9')).single.ref, 'MHU-9');
     expect((await store.search('abc234')).single.ref, 'MHU-9');
     expect(await store.search('nobody'), isEmpty);
+  });
+
+  test('server errors map to park, retry later or sign in again', () {
+    expect(SdkServer.classify(ValidationException('Unknown purpose')).kind, Failure.rejected);
+    expect(SdkServer.classify(AuthException('expired', 401)).kind, Failure.auth);
+    expect(SdkServer.classify(NetworkException('no route')).kind, Failure.offline);
+    expect(SdkServer.classify(ApiException('boom', 502)).kind, Failure.offline);
+    expect(SdkServer.classify(ApiException('missing', 404)).kind, Failure.rejected);
+    expect(SdkServer.classify(Exception('weird')).kind, Failure.offline);
   });
 }
