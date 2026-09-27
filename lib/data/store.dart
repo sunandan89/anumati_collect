@@ -30,8 +30,11 @@ class Store {
     final db = await openDatabase(
       p.join(dir.path, _dbName),
       password: dbKey,
-      version: 1,
+      version: 2,
       onCreate: (db, _) => createSchema(db),
+      onUpgrade: (db, from, to) async {
+        if (from < 2) await db.execute("ALTER TABLE principals ADD COLUMN source TEXT DEFAULT 'phone'");
+      },
     );
     final evDir = Directory(p.join(dir.path, 'evidence'));
     await evDir.create(recursive: true);
@@ -61,7 +64,7 @@ class Store {
     await db.execute('CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT)');
     await db.execute('''CREATE TABLE principals (
       ref TEXT PRIMARY KEY, programme TEXT, full_name TEXT, phone TEXT, lang TEXT,
-      flags TEXT, last_code TEXT, verification_method TEXT, created_at TEXT)''');
+      flags TEXT, last_code TEXT, verification_method TEXT, created_at TEXT, source TEXT DEFAULT 'phone')''');
     await db.execute('''CREATE TABLE outbox (
       id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, event_uuid TEXT UNIQUE,
       principal_ref TEXT, programme TEXT, payload TEXT NOT NULL, progress TEXT,
@@ -93,6 +96,36 @@ class Store {
 
   Future<void> savePrincipal(LocalPrincipal pr) =>
       db.insert('principals', pr.toRow(), conflictAlgorithm: ConflictAlgorithm.replace);
+
+  /// A person downloaded from the server (principal.for_device). People captured on this phone and not
+  /// yet synced keep their local copy; server choices never override a newer local decision.
+  Future<void> saveServerPrincipal(String programme, Map<String, dynamic> p) async {
+    final ref = p['principal_ref'] as String;
+    final existing = await principal(ref);
+    bool b(String k) => p[k] == 1 || p[k] == true;
+    await db.insert('principals', {
+      'ref': ref,
+      'programme': programme,
+      'full_name': (p['full_name'] as String?)?.isNotEmpty == true ? p['full_name'] : existing?.fullName ?? '',
+      'phone': (p['phone'] as String?)?.isNotEmpty == true ? p['phone'] : existing?.phone,
+      'lang': p['preferred_language'] ?? existing?.lang ?? 'en',
+      'flags': jsonEncode({
+        'minor': b('is_minor'),
+        'pwd': b('pwd_guarded'),
+        'read': b('needs_assistance'),
+        'shared': b('shared_phone'),
+        'nophone': b('no_phone'),
+      }),
+      'last_code': p['last_code'] ?? existing?.lastCode,
+      'verification_method': existing?.verificationMethod,
+      'created_at': existing?.createdAt ?? DateTime.now().toIso8601String(),
+      'source': existing == null ? 'server' : 'phone',
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    for (final d in (p['decisions'] as List? ?? const [])) {
+      final m = d as Map;
+      await decide(ref, programme, m['purpose'] as String, m['status'] as String, '${m['at'] ?? ''}', 'server');
+    }
+  }
 
   Future<LocalPrincipal?> principal(String ref) async {
     final rows = await db.query('principals', where: 'ref = ?', whereArgs: [ref]);

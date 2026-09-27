@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             foregroundColor: AC.leaf,
                             minimumSize: const Size(0, 40),
                           ),
-                          onPressed: s.syncing || waiting == 0 ? null : () => s.sync(),
+                          onPressed: s.syncing ? null : () => s.sync(),
                           icon: s.syncing
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.sync, size: 18),

@@ -6,11 +6,10 @@ import 'package:provider/provider.dart';
 import 'app_state.dart';
 import 'core/strings.dart';
 import 'core/theme.dart';
+import 'core/version.dart';
 import 'screens/home.dart';
+import 'screens/lock.dart';
 import 'screens/login.dart';
-
-const appVersion = '1.0.0';
-const packageName = 'org.anumati.collect';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,13 +18,48 @@ void main() {
   state.boot();
 }
 
-class AnumatiCollect extends StatelessWidget {
+class AnumatiCollect extends StatefulWidget {
   const AnumatiCollect({super.key});
+  @override
+  State<AnumatiCollect> createState() => _AnumatiCollectState();
+}
+
+class _AnumatiCollectState extends State<AnumatiCollect> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final s = context.read<AppState>();
+    if (state == AppLifecycleState.paused) s.appPaused();
+    if (state == AppLifecycleState.resumed) s.appResumed();
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     return MaterialApp(
+      // A new navigator when signing in or out, so no screen from the old session stays open.
+      key: ValueKey('${s.signedIn}-${s.hasPin}'),
+      // The lock covers whatever is open (a half-taken consent stays as it was underneath).
+      builder: (context, child) => Stack(
+        children: [
+          ?child,
+          if (s.ready && s.signedIn && s.hasPin && s.locked)
+            Positioned.fill(
+              child: Navigator(onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const LockScreen())),
+            ),
+        ],
+      ),
       title: 'Anumati Collect',
       debugShowCheckedModeBanner: false,
       theme: anumatiTheme(),
@@ -36,6 +70,8 @@ class AnumatiCollect extends StatelessWidget {
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : !s.signedIn
           ? const LoginScreen()
+          : !s.hasPin
+          ? const LockScreen(setup: true)
           : FrappeAppGuard(
               baseUrl: s.sdk!.baseUrl,
               currentPackageName: packageName,

@@ -70,6 +70,17 @@ class FakeServer implements Server {
     return {'request': 'RQ-00001'};
   }
 
+  Map<String, dynamic>? people;
+  @override
+  Future<Map<String, dynamic>?> peopleForDevice(String programme, String? since) async => people;
+  @override
+  Future<Map<String, dynamic>?> registerDevice(
+    String deviceId, {
+    String? appVersion,
+    String? model,
+    int pending = 0,
+  }) async => {'status': 'active', 'wipe': false};
+
   @override
   Future<List<Map<String, dynamic>>> programmes() async => [];
   @override
@@ -258,5 +269,25 @@ void main() {
     expect(SdkServer.classify(ApiException('boom', 502)).kind, Failure.offline);
     expect(SdkServer.classify(ApiException('missing', 404)).kind, Failure.rejected);
     expect(SdkServer.classify(Exception('weird')).kind, Failure.offline);
+  });
+
+  test('people from the server are stored for offline find, without overriding newer phone choices', () async {
+    await store.decide('MHU-7', 'MHU', 'follow', 'withdrawn', '2026-09-25 10:00:00', 'local');
+    await store.saveServerPrincipal('MHU', {
+      'principal_ref': 'MHU-7',
+      'full_name': 'Gauri P. (fictional)',
+      'phone': '5550000007',
+      'preferred_language': 'hi',
+      'is_minor': 0,
+      'last_code': 'AN-QWERTY',
+      'decisions': [
+        {'purpose': 'screen', 'status': 'granted', 'at': '2026-09-20 11:20:00'},
+        {'purpose': 'follow', 'status': 'granted', 'at': '2026-09-20 11:20:00'},
+      ],
+    });
+    expect((await store.search('gauri')).single.lastCode, 'AN-QWERTY');
+    final d = await store.decisions('MHU-7', 'MHU');
+    expect(d['screen'], 'granted');
+    expect(d['follow'], 'withdrawn', reason: 'the newer withdrawal on the phone wins');
   });
 }
