@@ -1,0 +1,47 @@
+name: Create Play upload key
+
+# Run once, by hand, before the first Play Store upload. It creates the
+# Android upload key on the GitHub runner and stores it straight into this
+# repository's GitHub Secrets. Nobody ever sees or copies the key or its
+# passwords. Needs one secret you create first: SECRETS_WRITER_TOKEN (a
+# fine-grained GitHub token for this repository with "Secrets: read and
+# write"). See docs/play-store.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type CREATE to make a new upload key (replaces an existing one)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'CREATE'
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Generate the key and store it as secrets
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_WRITER_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then echo "Add the SECRETS_WRITER_TOKEN secret first"; exit 1; fi
+          PASS=$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)
+          echo "::add-mask::$PASS"
+          keytool -genkeypair -v -keystore "$RUNNER_TEMP/upload.jks" -storetype JKS \
+            -alias upload -keyalg RSA -keysize 4096 -validity 10000 \
+            -storepass "$PASS" -keypass "$PASS" \
+            -dname "CN=Anumati Collect, O=Anumati, C=IN" >/dev/null 2>&1
+          base64 -w0 "$RUNNER_TEMP/upload.jks" | gh secret set ANDROID_KEYSTORE_BASE64 --repo "$REPO"
+          printf '%s' "$PASS" | gh secret set ANDROID_KEYSTORE_PASSWORD --repo "$REPO"
+          printf '%s' "$PASS" | gh secret set ANDROID_KEY_PASSWORD --repo "$REPO"
+          printf '%s' "upload" | gh secret set ANDROID_KEY_ALIAS --repo "$REPO"
+          rm -f "$RUNNER_TEMP/upload.jks"
+          echo "Upload key created and saved to GitHub Secrets. Delete the SECRETS_WRITER_TOKEN secret now."
