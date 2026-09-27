@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 
@@ -12,8 +13,10 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 
 /// M3 Notice (spec A1, A3): the live notice in her language. Choices unlock
-/// only after the reviewed audio has played through, or, where there is no
-/// reviewed audio, after the text has been scrolled to the end.
+/// only after the audio has played through or the text has been read to the
+/// end. The audio is the reviewed recording when the organisation has one;
+/// otherwise the phone reads the (reviewed) notice text aloud with its own
+/// voice, so people who can't read still hear the whole notice.
 class NoticeScreen extends StatefulWidget {
   const NoticeScreen({super.key, required this.draft});
   final CaptureDraft draft;
@@ -30,6 +33,13 @@ class _NoticeScreenState extends State<NoticeScreen> {
   bool _playing = false;
   bool _loaded = false;
   final _subs = <StreamSubscription>[];
+
+  // Phone voice (text-to-speech) when there is no reviewed recording.
+  final _tts = FlutterTts();
+  bool _speaking = false;
+  bool _ttsUnavailable = false;
+  int _chunk = 0;
+  List<String> _chunks = const [];
 
   @override
   void initState() {
@@ -78,8 +88,111 @@ class _NoticeScreenState extends State<NoticeScreen> {
       s.cancel();
     }
     _player?.dispose();
+    _speaking = false;
+    _tts.stop();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// The notice as short spoken chunks (Android limits one utterance to ~4000 chars).
+  List<String> _spokenChunks(Notice n) {
+    final l = d.lang;
+    final parts = <String>[
+      if (n.summary.isNotEmpty) n.summary,
+      if (d.offered.isNotEmpty)
+        '${trFor(l, 'Why we need this')}. ${d.offered.map((p) => '${p.title}. ${p.description}').join(' ')}',
+      if (n.fullText.isNotEmpty) '${trFor(l, 'What we collect')}. ${_plain(n.fullText)}',
+      if (n.rightsText.isNotEmpty) '${trFor(l, 'Your rights')}. ${_plain(n.rightsText)}',
+      if (n.withdrawalMethods.isNotEmpty) '${trFor(l, 'How to withdraw')}. ${_plain(n.withdrawalMethods)}',
+      if (n.complaintRoute.isNotEmpty || n.dpoContact.isNotEmpty)
+        '${trFor(l, 'Complaints')}. ${_plain(n.dpoContact)} ${_plain(n.complaintRoute)}',
+    ];
+    return [
+      for (final p in parts)
+        for (var i = 0; i < p.length; i += 3000) p.substring(i, (i + 3000).clamp(0, p.length)),
+    ];
+  }
+
+  Future<void> _speak(Notice n) async {
+    if (_speaking) {
+      _speaking = false;
+      await _tts.stop();
+      setState(() {});
+      return;
+    }
+    final locale = d.lang == 'hi' ? 'hi-IN' : 'en-IN';
+    final available = await _tts.isLanguageAvailable(locale);
+    if (available != true) {
+      setState(() => _ttsUnavailable = true);
+      return;
+    }
+    await _tts.setLanguage(locale);
+    await _tts.setSpeechRate(0.45);
+    await _tts.awaitSpeakCompletion(true);
+    _chunks = _spokenChunks(n);
+    if (_chunk >= _chunks.length) _chunk = 0;
+    setState(() => _speaking = true);
+    while (_speaking && _chunk < _chunks.length) {
+      await _tts.speak(_chunks[_chunk]);
+      if (!_speaking || !mounted) return;
+      setState(() => _chunk++);
+    }
+    if (mounted && _chunk >= _chunks.length) {
+      setState(() {
+        _speaking = false;
+        d.noticeDone = true;
+      });
+    }
+  }
+
+  Widget _voiceCard(Notice n) {
+    final l = d.lang;
+    final total = _chunks.isEmpty ? _spokenChunks(n).length : _chunks.length;
+    return PCard(
+      borderColor: AC.leaf,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              IconButton.filled(
+                style: IconButton.styleFrom(
+                  backgroundColor: AC.leaf,
+                  foregroundColor: AC.leafInk,
+                  minimumSize: const Size(50, 50),
+                ),
+                onPressed: () => _speak(n),
+                icon: Icon(_speaking ? Icons.stop : Icons.volume_up),
+                tooltip: _speaking ? tr('Stop') : tr('Listen to the notice'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      d.noticeDone ? trFor(l, 'Notice played in full') : trFor(l, 'Listen to the notice'),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Muted(tr('Phone voice · the notice is read aloud by this phone')),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: d.noticeDone ? 1 : (total == 0 ? 0 : _chunk / total),
+            color: AC.leaf,
+            backgroundColor: AC.line2,
+          ),
+          if (_ttsUnavailable) ...[
+            const SizedBox(height: 8),
+            Note(tr('This phone has no voice for this language. Read the notice aloud yourself.')),
+          ],
+        ],
+      ),
+    );
   }
 
   String _mm(Duration t) => '${t.inMinutes}:${(t.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -125,6 +238,8 @@ class _NoticeScreenState extends State<NoticeScreen> {
         onPressed: d.noticeDone
             ? () {
                 _player?.pause();
+                _speaking = false;
+                _tts.stop();
                 goNext(context, d, 'notice');
               }
             : null,
@@ -159,7 +274,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
                             d.noticeDone ? trFor(l, 'Notice played in full') : trFor(l, 'Play the full notice'),
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          Muted('${_mm(_pos)} / ${_mm(_dur)}'),
+                          Muted('${tr('Reviewed recording')} · ${_mm(_pos)} / ${_mm(_dur)}'),
                         ],
                       ),
                     ),
@@ -174,6 +289,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
               ],
             ),
           ),
+        if (_player == null) _voiceCard(n),
         if (n.summary.isNotEmpty) Text(n.summary, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         if (why.isNotEmpty) _section(trFor(l, 'Why we need this'), why),
         if (n.fullText.isNotEmpty) _section(trFor(l, 'What we collect'), _plain(n.fullText)),

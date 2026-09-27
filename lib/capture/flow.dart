@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
+import '../app_state.dart';
 import '../core/strings.dart';
+import '../screens/receipt.dart';
 import '../screens/evidence.dart';
 import '../screens/guardian.dart';
 import '../screens/notice.dart';
@@ -16,8 +20,23 @@ List<String> flowSteps(CaptureDraft d) => [
   'notice',
   'purposes',
   'evidence',
-  'verify',
+  if (!d.verifiedByGuardian) 'verify',
 ];
+
+bool isLastStep(CaptureDraft d, String step) => flowSteps(d).last == step;
+
+/// Save the consent to the phone's outbox and show the receipt.
+Future<void> finishCapture(BuildContext context, CaptureDraft d) async {
+  if (d.verifiedByGuardian) {
+    d.verifyMethod = 'device_sms_otp';
+    d.otpConfirmed = true;
+  }
+  await context.read<AppState>().saveConsent(d);
+  if (!context.mounted) return;
+  Navigator.of(
+    context,
+  ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => ReceiptScreen(draft: d)), (r) => r.isFirst);
+}
 
 String stepLabel(CaptureDraft d, String step) {
   final steps = flowSteps(d);

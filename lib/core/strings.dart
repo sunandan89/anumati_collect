@@ -187,6 +187,16 @@ const Map<String, String> _hi = {
   'Verify and save': 'पुष्टि करें और सेव करें',
   'Save': 'सेव करें',
   'Code matched': 'कोड मेल खाता है',
+  'Record the guardian saying yes (optional when the guardian is verified)':
+      'अभिभावक की “हाँ” रिकॉर्ड करें (अभिभावक की पुष्टि हो चुकी हो तो वैकल्पिक)',
+  'Witness name (optional)': 'गवाह का नाम (वैकल्पिक)',
+  "Guardian's mobile (optional)": 'अभिभावक का मोबाइल (वैकल्पिक)',
+  'Listen to the notice': 'सूचना सुनें',
+  'Stop': 'रोकें',
+  'Phone voice · the notice is read aloud by this phone': 'फ़ोन की आवाज़ · यह फ़ोन सूचना पढ़कर सुनाएगा',
+  'Reviewed recording': 'समीक्षित रिकॉर्डिंग',
+  'This phone has no voice for this language. Read the notice aloud yourself.':
+      'इस फ़ोन में इस भाषा की आवाज़ नहीं है। सूचना ख़ुद पढ़कर सुनाएँ।',
   'That code does not match. Try again.': 'कोड मेल नहीं खाता। फिर से कोशिश करें।',
   'Too many wrong codes. Choose another method.': 'बहुत बार ग़लत कोड। कोई और तरीका चुनें।',
   'Your Anumati consent code is {0}. Read it back to the field worker.':

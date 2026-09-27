@@ -68,7 +68,9 @@ class _PrincipalScreenState extends State<PrincipalScreen> {
           controller: _phone,
           enabled: !d.noPhone,
           keyboardType: TextInputType.phone,
-          decoration: InputDecoration(labelText: tr('Mobile (optional)')),
+          decoration: InputDecoration(
+            labelText: d.needsGuardian ? tr("Guardian's mobile (optional)") : tr('Mobile (optional)'),
+          ),
         ),
         Muted(tr('Tick all that apply')),
         for (final e in _flagLabels.entries)

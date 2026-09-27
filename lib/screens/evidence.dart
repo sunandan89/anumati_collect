@@ -30,6 +30,7 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
   late final _relation = TextEditingController(text: d.witnessRelation);
   final _recorder = AudioRecorder();
   bool _recording = false;
+  bool _saving = false;
   Timer? _limit;
   int _seconds = 0;
 
@@ -82,8 +83,17 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
     return StepScaffold(
       bar: StepBar(title: tr('Record her consent'), subtitle: stepLabel(d, 'evidence')),
       footer: FilledButton(
-        onPressed: d.evidenceReady && !_recording ? () => goNext(context, d, 'evidence') : null,
-        child: Text(tr('Continue to verification')),
+        onPressed: d.evidenceReady && !_recording && !_saving
+            ? () async {
+                if (isLastStep(d, 'evidence')) {
+                  setState(() => _saving = true);
+                  await finishCapture(context, d);
+                } else {
+                  goNext(context, d, 'evidence');
+                }
+              }
+            : null,
+        child: Text(isLastStep(d, 'evidence') ? tr('Save') : tr('Continue to verification')),
       ),
       children: [
         if (!_assisted)
@@ -93,7 +103,11 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
             onChanged: (v) => setState(() => d.selfChosen = v),
           ),
         if (!d.selfChosen) ...[
-          Muted(tr('At least one, plus a witness for assisted consent')),
+          Muted(
+            d.needsGuardian
+                ? tr('Record the guardian saying yes (optional when the guardian is verified)')
+                : tr('At least one, plus a witness for assisted consent'),
+          ),
           Tile(
             icon: _recording ? Icons.stop : Icons.mic_none,
             title: tr('Voice — record her “haan”'),
@@ -121,7 +135,9 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
             controller: _witness,
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(labelText: tr('Witness name')),
+            decoration: InputDecoration(
+              labelText: d.needsGuardian ? tr('Witness name (optional)') : tr('Witness name'),
+            ),
           ),
           TextField(
             controller: _relation,
