@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write  # only to publish the test APK as the "test-latest" pre-release
 
 jobs:
   build:
@@ -83,3 +83,18 @@ jobs:
           name: anumati-collect-play-bundle-${{ github.run_number }}
           path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      # A direct download link for phones (no zip): Releases → "Test build (latest)".
+      - name: Publish test APK
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-latest
+          name: Test build (latest)
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body: |
+            Test APK from ${{ github.ref_name }} at ${{ github.sha }} (build ${{ github.run_number }}).
+            Debug-signed: for testing only, not for the Play Store.
+          files: build/app/outputs/flutter-apk/app-release.apk
