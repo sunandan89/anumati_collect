@@ -187,6 +187,23 @@ const Map<String, String> _hi = {
   'Verify and save': 'पुष्टि करें और सेव करें',
   'Save': 'सेव करें',
   'Code matched': 'कोड मेल खाता है',
+  'This phone was reported lost. Its data has been deleted. Sign in again to use it.':
+      'इस फ़ोन को खोया हुआ बताया गया था। इसका डेटा मिटा दिया गया है। इस्तेमाल के लिए फिर से साइन इन करें।',
+  'Too many wrong PINs. This phone was signed out and its data deleted.':
+      'बहुत बार ग़लत PIN। यह फ़ोन साइन आउट हो गया और इसका डेटा मिटा दिया गया।',
+  'The PINs did not match. Start again.': 'PIN मेल नहीं खाए। फिर से शुरू करें।',
+  'Wrong PIN. {0} tries left.': 'ग़लत PIN। {0} कोशिशें बाकी।',
+  'Choose a 4-digit PIN for this app': 'इस ऐप के लिए 4 अंकों का PIN चुनें',
+  'Enter the PIN again': 'PIN फिर से डालें',
+  'Enter your PIN': 'अपना PIN डालें',
+  'The app locks when you leave it for 5 minutes. Names and evidence stay protected.':
+      'ऐप छोड़ने के 5 मिनट बाद ऐप लॉक हो जाता है। नाम और सबूत सुरक्षित रहते हैं।',
+  'Forgot PIN? Sign out': 'PIN भूल गए? साइन आउट करें',
+  'Send receipt by SMS': 'रसीद SMS से भेजें',
+  'Opens your SMS app with her receipt. You tap Send.': 'उनकी रसीद के साथ SMS ऐप खुलेगा। आप Send दबाएँ।',
+  'Anumati receipt {0}. Agreed: {1}. To withdraw: SMS STOP {0}, give a missed call, or tell any worker.':
+      'अनुमति रसीद {0}। सहमति: {1}। वापस लेने के लिए: SMS में STOP {0} भेजें, मिस्ड कॉल दें, या किसी भी कार्यकर्ता को बताएँ।',
+  'From the office': 'दफ़्तर से',
   'Record the guardian saying yes (optional when the guardian is verified)':
       'अभिभावक की “हाँ” रिकॉर्ड करें (अभिभावक की पुष्टि हो चुकी हो तो वैकल्पिक)',
   'Witness name (optional)': 'गवाह का नाम (वैकल्पिक)',

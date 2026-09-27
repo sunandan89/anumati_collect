@@ -47,7 +47,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
     });
   }
 
-  String get _method => _p?.verificationMethod ?? 'deferred';
+  String get _method => _p?.verificationMethod ?? ((_p?.phone ?? '').isEmpty ? 'evidence_only' : 'device_sms_otp');
 
   List<NoticePurpose> get _new => [
     for (final pu in _notice?.purposes ?? const <NoticePurpose>[])

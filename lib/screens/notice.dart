@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -32,6 +33,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
   Duration _dur = Duration.zero;
   bool _playing = false;
   bool _loaded = false;
+  String? _card;
   final _subs = <StreamSubscription>[];
 
   // Phone voice (text-to-speech) when there is no reviewed recording.
@@ -52,6 +54,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
     final s = context.read<AppState>();
     d.notice = await s.notice(d.lang);
     final audio = d.notice?.translation == null ? null : await s.audioPath(d.lang);
+    _card = await s.cardPath(d.lang);
     if (audio != null) {
       final player = AudioPlayer();
       try {
@@ -62,7 +65,10 @@ class _NoticeScreenState extends State<NoticeScreen> {
           player.playerStateStream.listen((st) {
             setState(() => _playing = st.playing);
             if (st.processingState == ProcessingState.completed) {
-              setState(() => d.noticeDone = true);
+              setState(() {
+                d.noticeDone = true;
+                d.noticeDelivery = 'recording';
+              });
               player.pause();
             }
           }),
@@ -78,7 +84,13 @@ class _NoticeScreenState extends State<NoticeScreen> {
   void _onScroll() {
     if (_player != null || d.noticeDone || !_scroll.hasClients) return;
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 24) {
-      setState(() => d.noticeDone = true);
+      setState(() {
+        d.noticeDone = true;
+        // The worker reads it to her when she needs help reading; otherwise she read it herself.
+        if (d.noticeDelivery.isEmpty) {
+          d.noticeDelivery = d.flags['read']! || d.needsGuardian ? 'read_aloud' : 'read_on_screen';
+        }
+      });
     }
   }
 
@@ -141,6 +153,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
       setState(() {
         _speaking = false;
         d.noticeDone = true;
+        d.noticeDelivery = 'phone_voice';
       });
     }
   }
@@ -290,6 +303,11 @@ class _NoticeScreenState extends State<NoticeScreen> {
             ),
           ),
         if (_player == null) _voiceCard(n),
+        if (_card != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(File(_card!), fit: BoxFit.contain, semanticLabel: trFor(l, 'Notice')),
+          ),
         if (n.summary.isNotEmpty) Text(n.summary, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         if (why.isNotEmpty) _section(trFor(l, 'Why we need this'), why),
         if (n.fullText.isNotEmpty) _section(trFor(l, 'What we collect'), _plain(n.fullText)),

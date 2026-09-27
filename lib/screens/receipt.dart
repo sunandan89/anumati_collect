@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../capture/draft.dart';
 import '../core/strings.dart';
@@ -79,9 +80,29 @@ class ReceiptScreen extends StatelessWidget {
             ),
           ),
           PCard(child: Text(tr('Tell her: SMS STOP with this code, a missed call, or tell any worker to withdraw.'))),
+          if (d.phone.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: () => _sendReceipt(d),
+              icon: const Icon(Icons.sms_outlined),
+              label: Text(tr('Send receipt by SMS')),
+            ),
+          if (d.phone.isNotEmpty) Center(child: Muted(tr('Opens your SMS app with her receipt. You tap Send.'))),
         ],
       ),
     );
+  }
+
+  /// A receipt from the worker's own phone (works before the organisation's SMS gateway is set up).
+  /// Nothing is sent without the worker tapping Send in the SMS app.
+  Future<void> _sendReceipt(CaptureDraft d) async {
+    final byCode = {for (final p in d.offered) p.code: p.title};
+    final agreed = d.granted.map((c) => byCode[c] ?? c).join(', ');
+    final body = trFor(
+      d.lang,
+      'Anumati receipt {0}. Agreed: {1}. To withdraw: SMS STOP {0}, give a missed call, or tell any worker.',
+      [d.shortCode, agreed.isEmpty ? trFor(d.lang, 'Nothing') : agreed],
+    );
+    await launchUrl(Uri(scheme: 'sms', path: d.phone, queryParameters: {'body': body}));
   }
 
   Widget _row(String a, String b) => Padding(

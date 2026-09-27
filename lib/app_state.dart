@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:frappe_mobile_sdk/frappe_mobile_sdk.dart';
@@ -11,6 +13,7 @@ import 'package:uuid/uuid.dart';
 
 import 'capture/draft.dart';
 import 'core/strings.dart';
+import 'core/version.dart';
 import 'data/server.dart';
 import 'data/store.dart';
 import 'data/sync.dart';
@@ -28,6 +31,15 @@ class AppState extends ChangeNotifier {
 
   bool ready = false;
   bool signedIn = false;
+
+  // App lock: a 4-digit PIN, asked on start and after 5 minutes away (the phone holds names and evidence).
+  static const _pinKey = 'anumati.pin';
+  static const lockAfter = Duration(minutes: 5);
+  static const maxPinTries = 5;
+  bool hasPin = false;
+  bool locked = false;
+  int pinTries = 0;
+  DateTime? _pausedAt;
   String userName = '';
   String deviceId = '';
 
@@ -56,6 +68,8 @@ class AppState extends ChangeNotifier {
         signedIn = false;
       }
     }
+    hasPin = (await _secure.read(key: _pinKey)) != null;
+    locked = signedIn && hasPin;
     if (signedIn) await _afterSignIn();
     ready = true;
     notifyListeners();
@@ -140,7 +154,7 @@ class AppState extends ChangeNotifier {
     programmes = List<Map<String, dynamic>>.from(await store!.getJson('programmes') as List? ?? const []);
     programmeDoc = programme == null ? null : await store!.getJson('programme:$programme') as Map<String, dynamic>?;
     await refreshCounts();
-    unawaited(refreshReference());
+    unawaited(refreshReference().then((_) => sync(quiet: true)));
   }
 
   /// Wipes the phone: SQLCipher database, evidence, keys, SDK session.
@@ -150,6 +164,10 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
     await store?.wipe();
     await _secure.delete(key: _baseUrlKey);
+    await _secure.delete(key: _pinKey);
+    hasPin = false;
+    locked = false;
+    pinTries = 0;
     signedIn = false;
     programmes = [];
     programme = null;
@@ -158,6 +176,47 @@ class AppState extends ChangeNotifier {
     await store!.put('device_id', deviceId);
     await refreshCounts();
     notifyListeners();
+  }
+
+  static String _pinHash(String salt, String pin) => sha256.convert(utf8.encode('$salt:$pin')).toString();
+
+  Future<void> setPin(String pin) async {
+    final salt = const Uuid().v4();
+    await _secure.write(key: _pinKey, value: '$salt:${_pinHash(salt, pin)}');
+    hasPin = true;
+    locked = false;
+    pinTries = 0;
+    notifyListeners();
+  }
+
+  /// Returns true when the PIN is right. After [maxPinTries] wrong tries the phone signs out and wipes.
+  Future<bool> unlock(String pin) async {
+    final stored = await _secure.read(key: _pinKey);
+    final parts = stored?.split(':');
+    if (parts != null && parts.length == 2 && _pinHash(parts[0], pin) == parts[1]) {
+      locked = false;
+      pinTries = 0;
+      notifyListeners();
+      return true;
+    }
+    pinTries++;
+    if (pinTries >= maxPinTries) {
+      await signOut();
+      lastMessage = tr('Too many wrong PINs. This phone was signed out and its data deleted.');
+    }
+    notifyListeners();
+    return false;
+  }
+
+  void appPaused() => _pausedAt = DateTime.now();
+
+  void appResumed() {
+    final at = _pausedAt;
+    _pausedAt = null;
+    if (signedIn && hasPin && at != null && DateTime.now().difference(at) >= lockAfter) {
+      locked = true;
+      notifyListeners();
+    }
   }
 
   Future<void> setUiLang(String lang) async {
@@ -198,6 +257,13 @@ class AppState extends ChangeNotifier {
       try {
         final n = await server!.activeNotice(code, lang);
         await store!.putJson('notice:$code:$lang', n);
+        final card = ((n['translation'] as Map?)?['pictorial_card'] ?? n['pictorial_card']) as String?;
+        if (card != null) {
+          final dir = Directory(p.join((await getApplicationDocumentsDirectory()).path, 'cards'));
+          await dir.create(recursive: true);
+          final f = File(p.join(dir.path, '$code-$lang${p.extension(card)}'));
+          if (await server!.download(card, f) != null) await store!.put('card:$code:$lang', f.path);
+        }
         final audio = (n['translation'] as Map?)?['audio_file'] as String?;
         if (audio != null) {
           final dir = Directory(p.join((await getApplicationDocumentsDirectory()).path, 'audio'));
@@ -223,6 +289,7 @@ class AppState extends ChangeNotifier {
       try {
         await _cacheProgramme(code);
       } on ServerFailure catch (_) {}
+      await pullPeople();
       notifyListeners();
     }
   }
@@ -236,6 +303,11 @@ class AppState extends ChangeNotifier {
     if (programme == null) return null;
     final raw = await store!.getJson('notice:$programme:$lang') ?? await store!.getJson('notice:$programme:en');
     return raw == null ? null : Notice(Map<String, dynamic>.from(raw as Map));
+  }
+
+  Future<String?> cardPath(String lang) async {
+    final path = await store!.get('card:$programme:$lang');
+    return (path != null && await File(path).exists()) ? path : null;
   }
 
   Future<String?> audioPath(String lang) async {
@@ -383,6 +455,7 @@ class AppState extends ChangeNotifier {
           'device_time': at,
           'verification_method': verifyMethod,
           'verification_status': d.verificationStatus,
+          if (notice.supportsDelivery) ...{'notice_delivery': 'read_aloud', 'notice_completed': 1},
         },
       },
     );
@@ -425,6 +498,7 @@ class AppState extends ChangeNotifier {
     syncing = true;
     notifyListeners();
     try {
+      if (await _checkIn()) return;
       final r = await syncer!.run();
       if (r.stoppedBy == Failure.auth) {
         lastMessage = tr('Your session has ended. Sign in again to sync.');
@@ -435,10 +509,53 @@ class AppState extends ChangeNotifier {
         lastMessage = tr('Sync finished');
       }
       if (r.synced > 0) unawaited(refreshReference());
+      if (r.stoppedBy == null) await pullPeople();
     } finally {
       syncing = false;
       await refreshCounts();
       notifyListeners();
+    }
+  }
+
+  /// Device check-in (Field Device). Returns true if the phone was reported lost and has been wiped.
+  Future<bool> _checkIn() async {
+    try {
+      final out = await server!.registerDevice(
+        deviceId,
+        appVersion: appVersion,
+        model: Platform.operatingSystemVersion,
+        pending: pending + failed,
+      );
+      if (out != null && out['wipe'] == true) {
+        await signOut();
+        lastMessage = tr('This phone was reported lost. Its data has been deleted. Sign in again to use it.');
+        return true;
+      }
+    } on ServerFailure catch (_) {
+      // Older servers have no device check-in; a network or login problem shows up in the sync itself.
+    }
+    return false;
+  }
+
+  /// Download the programme's people and their choices into the encrypted store (offline find,
+  /// withdrawal and add-a-purpose for anyone, not only people captured on this phone).
+  Future<void> pullPeople() async {
+    final prog = programme;
+    if (prog == null || server == null) return;
+    try {
+      var since = await store!.get('people_since:$prog');
+      for (var page = 0; page < 20; page++) {
+        final out = await server!.peopleForDevice(prog, since);
+        if (out == null) return;
+        for (final p in (out['people'] as List? ?? const [])) {
+          await store!.saveServerPrincipal(prog, Map<String, dynamic>.from(p as Map));
+        }
+        since = out['until'] as String? ?? since;
+        if (since != null) await store!.put('people_since:$prog', since);
+        if (out['more'] != true) break;
+      }
+    } on ServerFailure catch (_) {
+      // Try again on the next sync.
     }
   }
 

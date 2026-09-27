@@ -28,12 +28,18 @@ class Notice {
   String get summary => (translation?['summary'] ?? raw['summary'] ?? '') as String;
   String get fullText => (translation?['full_text'] ?? raw['full_text'] ?? '') as String;
   String? get audioFile => translation?['audio_file'] as String?;
-  String? get pictorialCard => translation?['pictorial_card'] as String?;
+  String? get pictorialCard => (translation?['pictorial_card'] ?? raw['pictorial_card']) as String?;
+
+  /// Rule 3 contents in her language when the translation has them, else the notice's own text.
+  String _r3(String key) => (translation?[key] ?? raw[key] ?? '') as String;
   String? label(String key) => translation?[key] as String?;
-  String get withdrawalMethods => raw['withdrawal_methods'] as String? ?? '';
-  String get rightsText => raw['rights_text'] as String? ?? '';
-  String get complaintRoute => raw['board_complaint_route'] as String? ?? '';
-  String get dpoContact => raw['dpo_contact'] as String? ?? '';
+  String get withdrawalMethods => _r3('withdrawal_methods');
+  String get rightsText => _r3('rights_text');
+  String get complaintRoute => _r3('board_complaint_route');
+  String get dpoContact => _r3('dpo_contact');
+
+  /// Servers from the field-app MVP release serve pictorial_card and accept notice_delivery.
+  bool get supportsDelivery => raw.containsKey('pictorial_card');
   String get crossBorder => raw['cross_border_transfers'] as String? ?? '';
   List<NoticePurpose> get purposes => [
     for (final p in (raw['purposes'] as List? ?? const [])) NoticePurpose(Map<String, dynamic>.from(p as Map)),
@@ -76,6 +82,10 @@ class CaptureDraft {
   // notice and choices
   Notice? notice;
   bool noticeDone = false;
+
+  /// How the notice was given (coaching data sent with the consent, not signed):
+  /// recording, phone_voice, read_aloud or read_on_screen.
+  String noticeDelivery = '';
   final Map<String, bool> choices = {};
 
   // evidence
@@ -197,6 +207,11 @@ class CaptureDraft {
       'device_time': deviceTime(now),
       'verification_method': verifyMethod,
       'verification_status': verificationStatus,
+      // Only servers that know these fields get them (older ones reject unknown fields).
+      if (notice?.supportsDelivery ?? false) ...{
+        if (noticeDelivery.isNotEmpty) 'notice_delivery': noticeDelivery,
+        'notice_completed': noticeDone ? 1 : 0,
+      },
       if (!selfChosen && witness.trim().isNotEmpty)
         'witness': [witness.trim(), witnessRelation.trim()].where((s) => s.isNotEmpty).join(', '),
     },

@@ -19,6 +19,12 @@ abstract class Server {
   Future<Map<String, dynamic>> record(Map<String, dynamic> event);
   Future<Map<String, dynamic>> withdraw(Map<String, dynamic> args);
   Future<Map<String, dynamic>> submitRequest(Map<String, dynamic> args);
+
+  /// People in a programme for the phone's offline store; null if the server is too old to serve them.
+  Future<Map<String, dynamic>?> peopleForDevice(String programme, String? since);
+
+  /// Check in; returns {"status", "wipe"} or null if the server is too old.
+  Future<Map<String, dynamic>?> registerDevice(String deviceId, {String? appVersion, String? model, int pending = 0});
 }
 
 /// The app's failure kinds, so sync knows whether to stop, retry or park.
@@ -156,6 +162,49 @@ class SdkServer implements Server {
     } catch (e) {
       throw classify(e);
     }
+  }
+
+  /// Calls an endpoint that older servers don't have: "not found" means null, anything else as usual.
+  Future<dynamic> _optional(String method, Map<String, dynamic> args, {bool get = false}) async {
+    try {
+      return await _call(method, args, get: get);
+    } on ServerFailure catch (f) {
+      final m = f.message.toLowerCase();
+      if (f.kind == Failure.rejected &&
+          (m.contains('not found') ||
+              m.contains('no module') ||
+              m.contains('not whitelisted') ||
+              m.contains('failed to get method'))) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>?> peopleForDevice(String programme, String? since) async {
+    final out = await _optional('anumati.api.v1.principal.for_device', {
+      'programme': programme,
+      'since': ?since,
+      'limit': 500,
+    }, get: true);
+    return out is Map ? Map<String, dynamic>.from(out) : null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> registerDevice(
+    String deviceId, {
+    String? appVersion,
+    String? model,
+    int pending = 0,
+  }) async {
+    final out = await _optional('anumati.api.v1.device.register', {
+      'device_id': deviceId,
+      'app_version': ?appVersion,
+      'model': ?model,
+      'pending': pending,
+    });
+    return out is Map ? Map<String, dynamic>.from(out) : null;
   }
 
   @override
