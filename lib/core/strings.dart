@@ -51,6 +51,13 @@ const Map<String, String> _hi = {
   'Could not reach the server. Check the address and your internet.': 'सर्वर तक नहीं पहुँच सके। पता और इंटरनेट जाँचें।',
   'This user is not allowed to use the field app. Ask your admin to add the Mobile User role.':
       'इस यूज़र को फ़ील्ड ऐप की अनुमति नहीं है। एडमिन से Mobile User भूमिका जुड़वाएँ।',
+  'Could not start the app: {0}': 'ऐप शुरू नहीं हो सका: {0}',
+  'The field app is switched off on this site. In Desk, open Mobile Configuration and tick Enabled.':
+      'इस साइट पर फ़ील्ड ऐप बंद है। Desk में Mobile Configuration खोलकर Enabled पर टिक करें।',
+  'Frappe Mobile Control is not installed on this site. Ask your admin to install it.':
+      'इस साइट पर Frappe Mobile Control इंस्टॉल नहीं है। एडमिन से इंस्टॉल करवाएँ।',
+  'The server refused the sign-in: {0}': 'सर्वर ने साइन इन मना किया: {0}',
+  'Sign-in failed: {0}': 'साइन इन नहीं हुआ: {0}',
   'Sign out': 'साइन आउट',
   'Sign out and remove all data from this phone?': 'साइन आउट करें और इस फ़ोन से सारा डेटा हटाएँ?',
   '{0} records are not synced yet and will be lost.': '{0} रिकॉर्ड अभी सिंक नहीं हुए हैं और मिट जाएँगे।',

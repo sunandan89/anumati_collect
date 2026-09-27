@@ -78,29 +78,60 @@ class AppState extends ChangeNotifier {
     return url;
   }
 
-  /// Returns null on success, or a message to show.
+  /// Returns null on success, or a message to show. Checks in order so the
+  /// message says what is actually wrong: can the phone reach the site, is
+  /// Frappe Mobile Control installed and switched on, then the login itself.
   Future<String?> signIn(String address, String user, String password) async {
     final url = normaliseUrl(address);
     try {
       await _attach(url);
+    } catch (e) {
+      return tr('Could not start the app: {0}', [_short(e)]);
+    }
+    try {
+      await sdk!.api.rest.callPublic('ping', httpMethod: 'GET');
+    } catch (e) {
+      return '${tr('Could not reach the server. Check the address and your internet.')}\n(${_short(e)})';
+    }
+    try {
+      final status = await sdk!.api.rest.callPublic('mobile_auth.app_status', httpMethod: 'GET');
+      final msg = status is Map ? (status['message'] ?? status) : status;
+      if (msg is Map && msg['enabled'] == false) {
+        return tr('The field app is switched off on this site. In Desk, open Mobile Configuration and tick Enabled.');
+      }
+    } catch (e) {
+      if (e is FrappeException && (e.statusCode == 404 || e.statusCode == 417 || e.statusCode == 403)) {
+        return tr('Frappe Mobile Control is not installed on this site. Ask your admin to install it.');
+      }
+    }
+    try {
       await sdk!.login(user.trim(), password);
     } on AuthException {
       return tr('Could not sign in. Check your user ID and password.');
-    } on NetworkException {
-      return tr('Could not reach the server. Check the address and your internet.');
-    } on ApiException catch (e) {
-      if ((e.message).contains('mobile')) {
+    } on NetworkException catch (e) {
+      return '${tr('Could not reach the server. Check the address and your internet.')}\n(${_short(e)})';
+    } on FrappeException catch (e) {
+      final m = e.message.toLowerCase();
+      if (m.contains('not allowed to use mobile')) {
         return tr('This user is not allowed to use the field app. Ask your admin to add the Mobile User role.');
       }
-      return tr('Could not sign in. Check your user ID and password.');
-    } catch (_) {
-      return tr('Could not reach the server. Check the address and your internet.');
+      if (m.contains('unable to login') || m.contains('invalid login') || m.contains('incorrect')) {
+        return tr('Could not sign in. Check your user ID and password.');
+      }
+      return tr('The server refused the sign-in: {0}', [e.message]);
+    } catch (e) {
+      return tr('Sign-in failed: {0}', [_short(e)]);
     }
     await _secure.write(key: _baseUrlKey, value: url);
     signedIn = true;
     await _afterSignIn();
     notifyListeners();
     return null;
+  }
+
+  static String _short(Object e) {
+    final s = e.toString().replaceAll(RegExp(r'\s+'), ' ');
+    return s.length > 160 ? '${s.substring(0, 160)}…' : s;
   }
 
   Future<void> _afterSignIn() async {
