@@ -47,6 +47,10 @@ class AppState extends ChangeNotifier {
   String? programme;
   Map<String, dynamic>? programmeDoc;
 
+  /// From Mobile Control's app status (checked in the background, never blocking start-up).
+  String? blockedReason;
+  bool updateRequired = false;
+
   int pending = 0;
   int failed = 0;
   bool syncing = false;
@@ -78,7 +82,11 @@ class AppState extends ChangeNotifier {
   Future<void> _attach(String baseUrl, {bool restore = false}) async {
     await sdk?.dispose();
     sdk = FrappeSDK(baseUrl: baseUrl);
-    await sdk!.initialize(restore);
+    // Start fast: restore the saved session from the phone only. The SDK's own start-up sync (meta,
+    // permissions, translations over the network) is skipped; the app syncs in the background once
+    // Home is on screen, and an expired token is refreshed on the first 401.
+    await sdk!.initialize(false);
+    if (restore) await sdk!.auth.restoreSession(isOnline: false);
     server = SdkServer(sdk!);
     final tmp = await getTemporaryDirectory();
     syncer = Syncer(store!, server!, tmp);
@@ -154,6 +162,7 @@ class AppState extends ChangeNotifier {
     programmes = List<Map<String, dynamic>>.from(await store!.getJson('programmes') as List? ?? const []);
     programmeDoc = programme == null ? null : await store!.getJson('programme:$programme') as Map<String, dynamic>?;
     await refreshCounts();
+    unawaited(checkAppStatus());
     unawaited(refreshReference().then((_) => sync(quiet: true)));
   }
 
@@ -211,6 +220,7 @@ class AppState extends ChangeNotifier {
   void appPaused() => _pausedAt = DateTime.now();
 
   void appResumed() {
+    if (signedIn) unawaited(checkAppStatus());
     final at = _pausedAt;
     _pausedAt = null;
     if (signedIn && hasPin && at != null && DateTime.now().difference(at) >= lockAfter) {
@@ -515,6 +525,52 @@ class AppState extends ChangeNotifier {
       await refreshCounts();
       notifyListeners();
     }
+  }
+
+  static bool _older(String mine, String min) {
+    List<int> parts(String v) => v.split(RegExp(r'[.+-]')).map((x) => int.tryParse(x) ?? 0).toList();
+    final a = parts(mine), b = parts(min);
+    for (var i = 0; i < 3; i++) {
+      final x = i < a.length ? a[i] : 0, y = i < b.length ? b[i] : 0;
+      if (x != y) return x < y;
+    }
+    return false;
+  }
+
+  /// Mobile Control's switch-off, maintenance and minimum-version check, done in the background with a
+  /// short timeout (the SDK's guard waits up to ~90 s on a weak network before showing anything).
+  /// The last answer is remembered, so a switched-off or outdated app stays blocked offline too.
+  Future<void> checkAppStatus() async {
+    final base = sdk;
+    if (base == null) return;
+    Map? status;
+    try {
+      final out = await base.api.rest.getPublic(
+        '/api/v2/method/mobile_auth.app_status',
+        timeout: const Duration(seconds: 8),
+        maxRetries: 0,
+      );
+      final m = out is Map ? (out['data'] ?? out['message'] ?? out) : null;
+      if (m is Map) {
+        status = m;
+        await store!.putJson('app_status', m);
+      }
+    } catch (_) {
+      status = await store!.getJson('app_status') as Map?;
+    }
+    if (status == null) return;
+    final enabled = status['enabled'] != false;
+    final maintenance = status['maintenance_mode'] == true;
+    final min = (status['version'] as String?) ?? '';
+    blockedReason = !enabled
+        ? tr('The field app is switched off on this site. In Desk, open Mobile Configuration and tick Enabled.')
+        : maintenance
+        ? ((status['maintenance_message'] as String?)?.isNotEmpty == true
+              ? status['maintenance_message'] as String
+              : tr('The server is under maintenance. Your records stay safe on this phone.'))
+        : null;
+    updateRequired = enabled && min.isNotEmpty && _older(appVersion, min);
+    notifyListeners();
   }
 
   /// Device check-in (Field Device). Returns true if the phone was reported lost and has been wiped.

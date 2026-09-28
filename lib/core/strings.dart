@@ -187,6 +187,14 @@ const Map<String, String> _hi = {
   'Verify and save': 'पुष्टि करें और सेव करें',
   'Save': 'सेव करें',
   'Code matched': 'कोड मेल खाता है',
+  'The server is under maintenance. Your records stay safe on this phone.':
+      'सर्वर पर रखरखाव चल रहा है। आपके रिकॉर्ड इस फ़ोन पर सुरक्षित हैं।',
+  'Please update the app': 'कृपया ऐप अपडेट करें',
+  'The field app is paused': 'फ़ील्ड ऐप रोका गया है',
+  'This version is no longer supported. Records on this phone are kept.':
+      'यह संस्करण अब समर्थित नहीं है। इस फ़ोन के रिकॉर्ड सुरक्षित रहेंगे।',
+  'Update': 'अपडेट करें',
+  'Opening securely…': 'सुरक्षित रूप से खुल रहा है…',
   'This phone was reported lost. Its data has been deleted. Sign in again to use it.':
       'इस फ़ोन को खोया हुआ बताया गया था। इसका डेटा मिटा दिया गया है। इस्तेमाल के लिए फिर से साइन इन करें।',
   'Too many wrong PINs. This phone was signed out and its data deleted.':
