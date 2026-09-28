@@ -30,6 +30,8 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
   late final _relation = TextEditingController(text: d.witnessRelation);
   final _recorder = AudioRecorder();
   bool _recording = false;
+  bool _listening = false;
+  Map<String, dynamic>? _heard;
   bool _saving = false;
   Timer? _limit;
   int _seconds = 0;
@@ -71,8 +73,46 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
     final path = await _recorder.stop();
     setState(() => _recording = false);
     if (path == null) return;
+    final bytes = await File(path).readAsBytes();
     final (id, sha) = await s.store!.files!.adopt(File(path), 'm4a');
-    setState(() => d.voice = EvidenceRef(id, 'audio', sha));
+    setState(() {
+      d.voice = EvidenceRef(id, 'audio', sha);
+      _heard = null;
+      _listening = s.voiceHelper;
+    });
+    if (!s.voiceHelper) return;
+    // Optional hint (Sarvam): what was heard, and whether it sounds like yes or no. Never decides.
+    final heard = await s.hearClip(bytes, d.lang);
+    if (mounted) {
+      setState(() {
+        _listening = false;
+        _heard = heard;
+      });
+    }
+  }
+
+  Widget _hint() {
+    if (_listening) return Muted(tr('Checking what she said…'));
+    final h = _heard;
+    if (h == null) return const SizedBox.shrink();
+    final meaning = h['meaning'] as String?;
+    final (label, tone) = switch (meaning) {
+      'yes' => (tr('Sounds like yes'), Tone.ok),
+      'no' => (tr('Sounds like no'), Tone.danger),
+      _ => (tr('Not clear — listen again and decide'), Tone.warn),
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          StatusChip(label, tone: tone),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Muted('${tr('Heard: “{0}”', [h['transcript'] ?? ''])} · ${tr('You decide; this is only a hint.')}'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -118,6 +158,7 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
             ),
             onTap: () => _toggleRecording(s),
           ),
+          _hint(),
           Tile(
             icon: Icons.fingerprint,
             title: tr('Thumbprint on slip'),

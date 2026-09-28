@@ -51,6 +51,9 @@ class AppState extends ChangeNotifier {
   String? blockedReason;
   bool updateRequired = false;
 
+  /// The server offers the spoken yes/no hint (Sarvam); set at check-in, off by default.
+  bool voiceHelper = false;
+
   int pending = 0;
   int failed = 0;
   bool syncing = false;
@@ -274,13 +277,19 @@ class AppState extends ChangeNotifier {
           final f = File(p.join(dir.path, '$code-$lang${p.extension(card)}'));
           if (await server!.download(card, f) != null) await store!.put('card:$code:$lang', f.path);
         }
-        final audio = (n['translation'] as Map?)?['audio_file'] as String?;
-        if (audio != null) {
+        // Approved recording in her language, else the approved base-notice recording when the
+        // base text is what she will hear.
+        final tr = n['translation'] as Map?;
+        final src = tr ?? n;
+        // Both approved recordings (woman's and man's voice), so either plays offline.
+        for (final (field, key) in [('audio_file', 'audio'), ('audio_file_male', 'audio_m')]) {
+          final audio = src[field] as String?;
+          if (audio == null) continue;
           final dir = Directory(p.join((await getApplicationDocumentsDirectory()).path, 'audio'));
           await dir.create(recursive: true);
-          final f = File(p.join(dir.path, '$code-$lang${p.extension(audio)}'));
+          final f = File(p.join(dir.path, '$code-$lang-$key${p.extension(audio)}'));
           if (await server!.download(audio, f) != null) {
-            await store!.put('audio:$code:$lang', f.path);
+            await store!.put('$key:$code:$lang', f.path);
           }
         }
       } on ServerFailure catch (f) {
@@ -320,9 +329,14 @@ class AppState extends ChangeNotifier {
     return (path != null && await File(path).exists()) ? path : null;
   }
 
+  /// The approved recording to play: the voice matching this worker first, else the other one.
   Future<String?> audioPath(String lang) async {
-    final path = await store!.get('audio:$programme:$lang');
-    return (path != null && await File(path).exists()) ? path : null;
+    final male = await store!.get('voice') == 'male';
+    for (final key in male ? ['audio_m', 'audio'] : ['audio', 'audio_m']) {
+      final path = await store!.get('$key:$programme:$lang');
+      if (path != null && await File(path).exists()) return path;
+    }
+    return null;
   }
 
   /// Verification methods this programme allows that work from the phone.
@@ -573,6 +587,17 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A hint for the worker: what Sarvam heard in the clip and whether it sounds like yes or no.
+  /// Null when the helper is off, the phone is offline or anything fails; capture never waits on it.
+  Future<Map<String, dynamic>?> hearClip(List<int> clip, String? language) async {
+    if (!voiceHelper || server == null || !await online()) return null;
+    try {
+      return await server!.hear(clip, language).timeout(const Duration(seconds: 20));
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Device check-in (Field Device). Returns true if the phone was reported lost and has been wiped.
   Future<bool> _checkIn() async {
     try {
@@ -582,6 +607,9 @@ class AppState extends ChangeNotifier {
         model: Platform.operatingSystemVersion,
         pending: pending + failed,
       );
+      voiceHelper = out?['voice_helper'] == true;
+      // Woman's or man's recording of the notice, matching this worker (kept for offline starts).
+      if (out?['voice'] is String) await store!.put('voice', out!['voice'] as String);
       if (out != null && out['wipe'] == true) {
         await signOut();
         lastMessage = tr('This phone was reported lost. Its data has been deleted. Sign in again to use it.');
