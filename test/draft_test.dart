@@ -97,4 +97,24 @@ void main() {
     final adult = draft();
     expect(flowSteps(adult).last, 'verify');
   });
+
+  test('approved audio: her language first, the base notice only when she hears the base text', () {
+    expect(Notice({'notice': 'N', 'audio_file': '/private/files/base.mp3'}).audioFile, '/private/files/base.mp3');
+    expect(
+      Notice({
+        'notice': 'N',
+        'audio_file': '/private/files/base.mp3',
+        'translation': {'audio_file': '/private/files/hi.mp3'},
+      }).audioFile,
+      '/private/files/hi.mp3',
+    );
+    expect(
+      Notice({
+        'notice': 'N',
+        'audio_file': '/private/files/base.mp3',
+        'translation': {'summary': 'x'},
+      }).audioFile,
+      isNull,
+    );
+  });
 }

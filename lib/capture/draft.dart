@@ -27,7 +27,7 @@ class Notice {
   Map<String, dynamic>? get translation => raw['translation'] as Map<String, dynamic>?;
   String get summary => (translation?['summary'] ?? raw['summary'] ?? '') as String;
   String get fullText => (translation?['full_text'] ?? raw['full_text'] ?? '') as String;
-  String? get audioFile => translation?['audio_file'] as String?;
+  String? get audioFile => (translation != null ? translation!['audio_file'] : raw['audio_file']) as String?;
   String? get pictorialCard => (translation?['pictorial_card'] ?? raw['pictorial_card']) as String?;
 
   /// Rule 3 contents in her language when the translation has them, else the notice's own text.

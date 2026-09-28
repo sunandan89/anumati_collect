@@ -82,6 +82,9 @@ class FakeServer implements Server {
   }) async => {'status': 'active', 'wipe': false};
 
   @override
+  Future<Map<String, dynamic>?> hear(List<int> clip, String? language) async => null;
+
+  @override
   Future<List<Map<String, dynamic>>> programmes() async => [];
   @override
   Future<Map<String, dynamic>> programme(String code) async => {};

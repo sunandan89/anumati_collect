@@ -23,8 +23,12 @@ abstract class Server {
   /// People in a programme for the phone's offline store; null if the server is too old to serve them.
   Future<Map<String, dynamic>?> peopleForDevice(String programme, String? since);
 
-  /// Check in; returns {"status", "wipe"} or null if the server is too old.
+  /// Check in; returns {"status", "wipe", "voice_helper"} or null if the server is too old.
   Future<Map<String, dynamic>?> registerDevice(String deviceId, {String? appVersion, String? model, int pending = 0});
+
+  /// What Sarvam heard in a short consent clip: {"transcript", "meaning": yes|no|unclear}, or null when
+  /// the helper is off or the server is too old. A hint for the worker; nothing is stored.
+  Future<Map<String, dynamic>?> hear(List<int> clip, String? language);
 }
 
 /// The app's failure kinds, so sync knows whether to stop, retry or park.
@@ -205,6 +209,17 @@ class SdkServer implements Server {
       'pending': pending,
     });
     return out is Map ? Map<String, dynamic>.from(out) : null;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> hear(List<int> clip, String? language) async {
+    final out = await _optional('anumati.api.v1.voice.hear', {
+      'audio': base64Encode(clip),
+      'language': ?language,
+      'filename': 'clip.m4a',
+    });
+    if (out is! Map || out['enabled'] != true) return null;
+    return Map<String, dynamic>.from(out);
   }
 
   @override
