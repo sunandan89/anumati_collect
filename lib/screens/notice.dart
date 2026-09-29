@@ -297,7 +297,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    tr('Natural voice · Powered by Sarvam AI'),
+                                    trFor(l, 'Natural voice · Powered by Sarvam AI'),
                                     style: const TextStyle(fontSize: 12, color: AC.leaf, fontWeight: FontWeight.w600),
                                   ),
                                 ),
