@@ -52,6 +52,14 @@ android {
             signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
     }
+
+    // Keep native libraries compressed inside the APK: roughly halves the download for field
+    // phones on slow networks. Android unpacks them once at install.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 kotlin {
