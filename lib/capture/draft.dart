@@ -28,6 +28,9 @@ class Notice {
   String get summary => (translation?['summary'] ?? raw['summary'] ?? '') as String;
   String get fullText => (translation?['full_text'] ?? raw['full_text'] ?? '') as String;
   String? get audioFile => (translation != null ? translation!['audio_file'] : raw['audio_file']) as String?;
+
+  /// The recording above was made with Sarvam AI's voice: shown as a credit under the player.
+  bool get audioByAi => audioFile != null && (translation ?? raw)['audio_machine_made'] == 1;
   String? get pictorialCard => (translation?['pictorial_card'] ?? raw['pictorial_card']) as String?;
 
   /// Rule 3 contents in her language when the translation has them, else the notice's own text.

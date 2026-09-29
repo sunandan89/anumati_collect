@@ -282,6 +282,7 @@ class AppState extends ChangeNotifier {
         final tr = n['translation'] as Map?;
         final src = tr ?? n;
         // Both approved recordings (woman's and man's voice), so either plays offline.
+        await store!.put('audio_ai:$code:$lang', Notice(n).audioByAi ? '1' : null);
         for (final (field, key) in [('audio_file', 'audio'), ('audio_file_male', 'audio_m')]) {
           final audio = src[field] as String?;
           if (audio == null) continue;
@@ -338,6 +339,9 @@ class AppState extends ChangeNotifier {
     }
     return null;
   }
+
+  /// Whether the recording was made with Sarvam AI's voice, so the notice screen can credit it.
+  Future<bool> audioByAi(String lang) async => await store!.get('audio_ai:$programme:$lang') == '1';
 
   /// Verification methods this programme allows that work from the phone.
   List<String> get allowedVerification {

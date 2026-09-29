@@ -33,6 +33,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
   Duration _dur = Duration.zero;
   bool _playing = false;
   bool _loaded = false;
+  bool _byAi = false; // recording made with Sarvam AI's voice (and approved by a reviewer)
   String? _card;
   final _subs = <StreamSubscription>[];
 
@@ -53,7 +54,8 @@ class _NoticeScreenState extends State<NoticeScreen> {
   Future<void> _load() async {
     final s = context.read<AppState>();
     d.notice = await s.notice(d.lang);
-    final audio = d.notice?.translation == null ? null : await s.audioPath(d.lang);
+    final audio = d.notice == null ? null : await s.audioPath(d.lang);
+    _byAi = await s.audioByAi(d.lang);
     _card = await s.cardPath(d.lang);
     if (audio != null) {
       final player = AudioPlayer();
@@ -288,6 +290,19 @@ class _NoticeScreenState extends State<NoticeScreen> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Muted('${tr('Reviewed recording')} · ${_mm(_pos)} / ${_mm(_dur)}'),
+                          if (_byAi)
+                            Row(
+                              children: [
+                                const Icon(Icons.graphic_eq, size: 14, color: AC.leaf),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    trFor(l, 'Natural voice · Powered by Sarvam AI'),
+                                    style: const TextStyle(fontSize: 12, color: AC.leaf, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     ),

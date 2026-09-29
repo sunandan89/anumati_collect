@@ -1,6 +1,7 @@
 import 'package:anumati_collect/capture/draft.dart';
 import 'package:anumati_collect/capture/flow.dart';
 import 'package:anumati_collect/core/receipt_code.dart';
+import 'package:anumati_collect/core/strings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Notice notice() => Notice({
@@ -116,5 +117,26 @@ void main() {
       }).audioFile,
       isNull,
     );
+  });
+
+  test('Sarvam credit shows for English and Hindi machine-voiced recordings only', () {
+    // English consent: the base notice's own recording.
+    expect(Notice({'notice': 'N', 'audio_file': '/f/en.mp3', 'audio_machine_made': 1}).audioByAi, isTrue);
+    expect(Notice({'notice': 'N', 'audio_file': '/f/en.mp3', 'audio_machine_made': 0}).audioByAi, isFalse);
+    // Hindi consent: the translation's recording decides, not the base notice's.
+    final hi = {'audio_file': '/f/hi.mp3', 'audio_machine_made': 1};
+    expect(Notice({'notice': 'N', 'audio_file': '/f/en.mp3', 'translation': hi}).audioByAi, isTrue);
+    expect(
+      Notice({
+        'notice': 'N',
+        'audio_file': '/f/en.mp3',
+        'audio_machine_made': 1,
+        'translation': {'summary': 'x'},
+      }).audioByAi,
+      isFalse,
+    );
+    // Older server that doesn't send the flag: no credit.
+    expect(Notice({'notice': 'N', 'audio_file': '/f/en.mp3'}).audioByAi, isFalse);
+    expect(trFor('hi', 'Natural voice · Powered by Sarvam AI'), isNot('Natural voice · Powered by Sarvam AI'));
   });
 }

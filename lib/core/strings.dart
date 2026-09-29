@@ -226,6 +226,7 @@ const Map<String, String> _hi = {
   'Stop': 'रोकें',
   'Phone voice · the notice is read aloud by this phone': 'फ़ोन की आवाज़ · यह फ़ोन सूचना पढ़कर सुनाएगा',
   'Reviewed recording': 'समीक्षित रिकॉर्डिंग',
+  'Natural voice · Powered by Sarvam AI': 'प्राकृतिक आवाज़ · Sarvam AI द्वारा',
   'This phone has no voice for this language. Read the notice aloud yourself.':
       'इस फ़ोन में इस भाषा की आवाज़ नहीं है। सूचना ख़ुद पढ़कर सुनाएँ।',
   'That code does not match. Try again.': 'कोड मेल नहीं खाता। फिर से कोशिश करें।',
