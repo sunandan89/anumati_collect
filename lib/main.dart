@@ -42,7 +42,12 @@ class _AnumatiCollectState extends State<AnumatiCollect> with WidgetsBindingObse
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final s = context.read<AppState>();
     if (state == AppLifecycleState.paused) s.appPaused();
-    if (state == AppLifecycleState.resumed) s.appResumed();
+    if (state == AppLifecycleState.resumed) {
+      s.appResumed();
+      // Draw a fresh frame straight away on return, even before anything changes on screen, so the
+      // phone never keeps showing a stale or empty surface until the next tap.
+      WidgetsBinding.instance.scheduleForcedFrame();
+    }
   }
 
   @override
