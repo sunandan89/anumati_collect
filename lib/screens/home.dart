@@ -240,8 +240,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       subtitle: tr('Self, assisted or guardian'),
                       onTap: () async {
                         if (!await _requireNotice(s) || !context.mounted) return;
-                        final draft = CaptureDraft(programme: s.programme!, deviceId: s.deviceId);
+                        final draft = CaptureDraft(programme: s.programme!, deviceId: s.deviceId)
+                          ..allowedMethods = s.allowedVerification;
                         draft.lang = Strings.uiLang;
+                        draft.notice = await s.notice(draft.lang);
+                        if (!context.mounted) return;
                         Navigator.push(context, MaterialPageRoute(builder: (_) => PrincipalScreen(draft: draft)));
                       },
                     ),

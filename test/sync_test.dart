@@ -32,6 +32,14 @@ class FakeServer implements Server {
   @override
   Future<String?> principalName(String ref) async => principals.containsKey(ref) ? 'dp-$ref' : null;
 
+  final told = <String>[];
+
+  @override
+  Future<void> guardianNeeded(String programme) async {
+    calls.add('guardian_needed');
+    told.add(programme);
+  }
+
   @override
   Future<String> guardianLink(Map<String, dynamic> doc) async {
     calls.add('link');
@@ -242,6 +250,36 @@ void main() {
     expect(server.links.length, 1);
     expect(server.calls.where((c) => c == 'link').length, 1);
     expect(server.events['u-4']!['guardian_link'], 'GL-dp-MHU-1|dp-MHU-1-G');
+  });
+
+  test("a guardian's order photo and ID photo land in their own fields on the guardian link", () async {
+    Future<Map<String, String>> photo(String name, String kind) async {
+      final f = File('${tmp.path}/$name.jpg')..writeAsStringSync('photo $name (fictional)');
+      final (id, sha) = await store.files!.adopt(f, 'jpg');
+      return {'local': id, 'kind': kind, 'sha256': sha};
+    }
+
+    final order = await photo('order', 'guardian_order');
+    final id = await photo('id', 'guardian_document');
+    final payload = consentPayload(
+      'u-6',
+      guardian: {
+        'principal': {'principal_ref': 'MHU-1-G', 'full_name': 'Suresh K. (fictional)'},
+        'link': {'guardian_type': 'committee', 'authority_ref': 'LLC/2026/0412', 'verification_method': 'document'},
+      },
+    )..['guardian_evidence'] = [order, id];
+    await store.enqueue(kind: 'consent', eventUuid: 'u-6', principalRef: 'MHU-1', payload: payload);
+    await syncer.run();
+    final link = server.links.values.single;
+    expect(link['evidence'], '/private/files/u-6-guardian_order.jpg');
+    expect(link['id_document'], '/private/files/u-6-guardian_document.jpg');
+  });
+
+  test('telling the coordinator syncs with the programme only', () async {
+    await store.enqueue(kind: 'guardian_needed', programme: 'MHU', payload: {'programme': 'MHU'});
+    final r = await syncer.run();
+    expect(r.synced, 1);
+    expect(server.told, ['MHU']);
   });
 
   test('local decisions: an older event never overrides a newer one', () async {

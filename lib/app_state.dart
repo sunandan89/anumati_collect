@@ -433,6 +433,13 @@ class AppState extends ChangeNotifier {
     await _afterWrite();
   }
 
+  /// An adult who can't decide alone has no appointed guardian: tell the coordinator (no personal data)
+  /// through the outbox, so it also works offline. Nothing about the person is stored.
+  Future<void> informCoordinator() async {
+    await store!.enqueue(kind: 'guardian_needed', programme: programme, payload: {'programme': programme});
+    await _afterWrite();
+  }
+
   /// Just-in-time consent for purposes added to the notice later.
   Future<String> saveAddedPurposes({
     required LocalPrincipal principal,
@@ -440,14 +447,14 @@ class AppState extends ChangeNotifier {
     required Map<String, bool> answers,
     required String verifyMethod,
     required bool confirmed,
+    String? witness,
   }) async {
     final d = CaptureDraft(programme: programme!, deviceId: deviceId)
       ..principalRef = principal.ref
       ..lang = principal.lang
       ..notice = notice
       ..verifyMethod = verifyMethod
-      ..otpConfirmed = confirmed
-      ..selfChosen = true;
+      ..otpConfirmed = confirmed;
     d.flags.addAll(principal.flags);
     final now = DateTime.now();
     final at = CaptureDraft.deviceTime(now);
@@ -477,13 +484,14 @@ class AppState extends ChangeNotifier {
           'purposes_denied': denied,
           'notice': notice.name,
           'language': principal.lang,
-          'capture_mode': 'self_worker_device',
+          'capture_mode': principal.flag('read') ? 'assisted_witnessed' : 'self_worker_device',
           'channel': 'app',
           'device_id': deviceId,
           'device_time': at,
           'verification_method': verifyMethod,
           'verification_status': d.verificationStatus,
           if (notice.supportsDelivery) ...{'notice_delivery': 'read_aloud', 'notice_completed': 1},
+          if (witness != null && witness.isNotEmpty) 'witness': witness,
         },
       },
     );

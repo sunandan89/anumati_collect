@@ -67,6 +67,9 @@ class Syncer {
       case 'request':
         await server.submitRequest(Map<String, dynamic>.from(payload['args'] as Map));
         return null;
+      case 'guardian_needed':
+        await server.guardianNeeded(payload['programme'] as String);
+        return null;
     }
     throw ServerFailure(Failure.rejected, 'Unknown record type ${item.kind}');
   }
@@ -131,8 +134,9 @@ class Syncer {
         final link = Map<String, dynamic>.from(guardian['link'] as Map)
           ..['principal'] = principalName
           ..['guardian'] = guardianName;
-        if (guardianEvidence.isNotEmpty) {
-          link['evidence'] = files[guardianEvidence.first['local']];
+        // The order photo goes in 'evidence', the guardian's ID photo in 'id_document'.
+        for (final e in guardianEvidence) {
+          link[e['kind'] == 'guardian_document' ? 'id_document' : 'evidence'] ??= files[e['local']];
         }
         progress['guardian_link'] = await server.guardianLink(link);
         await save();

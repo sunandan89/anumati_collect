@@ -17,6 +17,9 @@ class ReceiptScreen extends StatelessWidget {
     return codes.isEmpty ? tr('Nothing') : codes.map((c) => byCode[c] ?? c).join(', ');
   }
 
+  /// Where the receipt SMS goes: the person's phone, or the guardian's when a guardian consented.
+  static String _to(CaptureDraft d) => d.needsGuardian ? d.guardianPhone : d.phone;
+
   @override
   Widget build(BuildContext context) {
     final d = draft;
@@ -55,7 +58,7 @@ class ReceiptScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Muted(tr('Consent code — write it on her slip')),
+                Muted(tr('Consent code — write it on their slip')),
                 const SizedBox(height: 6),
                 SelectableText(
                   d.shortCode,
@@ -79,14 +82,14 @@ class ReceiptScreen extends StatelessWidget {
               ],
             ),
           ),
-          PCard(child: Text(tr('Tell her: SMS STOP with this code, a missed call, or tell any worker to withdraw.'))),
-          if (d.phone.isNotEmpty)
+          PCard(child: Text(tr('Tell them: SMS STOP with this code, a missed call, or tell any worker to withdraw.'))),
+          if (_to(d).isNotEmpty)
             OutlinedButton.icon(
               onPressed: () => _sendReceipt(d),
               icon: const Icon(Icons.sms_outlined),
               label: Text(tr('Send receipt by SMS')),
             ),
-          if (d.phone.isNotEmpty) Center(child: Muted(tr('Opens your SMS app with her receipt. You tap Send.'))),
+          if (_to(d).isNotEmpty) Center(child: Muted(tr('Opens your SMS app with their receipt. You tap Send.'))),
         ],
       ),
     );
@@ -102,7 +105,7 @@ class ReceiptScreen extends StatelessWidget {
       'Anumati receipt {0}. Agreed: {1}. To withdraw: SMS STOP {0}, give a missed call, or tell any worker.',
       [d.shortCode, agreed.isEmpty ? trFor(d.lang, 'Nothing') : agreed],
     );
-    await launchUrl(Uri(scheme: 'sms', path: d.phone, queryParameters: {'body': body}));
+    await launchUrl(Uri(scheme: 'sms', path: _to(d), queryParameters: {'body': body}));
   }
 
   Widget _row(String a, String b) => Padding(
