@@ -67,6 +67,9 @@ class Syncer {
       case 'request':
         await server.submitRequest(Map<String, dynamic>.from(payload['args'] as Map));
         return null;
+      case 'guardian_needed':
+        await server.guardianNeeded(payload['programme'] as String);
+        return null;
     }
     throw ServerFailure(Failure.rejected, 'Unknown record type ${item.kind}');
   }

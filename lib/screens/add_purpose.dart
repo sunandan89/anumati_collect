@@ -9,9 +9,10 @@ import '../data/store.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
 
-/// Ask for one more purpose, later (spec A2, A4, v0.4): shows what she has
+/// Ask for one more purpose, later (spec A2, A4, v0.4): shows what the person
 /// already decided (not asked again), only the new purpose's part of the
 /// notice, equal-weight Yes/No, and the same verification method as before.
+/// Someone who needs help reading also needs a witness, as at first consent.
 class AddPurposeScreen extends StatefulWidget {
   const AddPurposeScreen({super.key, required this.principalRef});
   final String principalRef;
@@ -27,6 +28,13 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   final Map<String, bool> _answer = {};
   bool _confirmed = false;
   bool _saving = false;
+  final _witness = TextEditingController();
+
+  @override
+  void dispose() {
+    _witness.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -51,13 +59,18 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
 
   List<NoticePurpose> get _new => [
     for (final pu in _notice?.purposes ?? const <NoticePurpose>[])
-      if (!pu.essential && !_decided.containsKey(pu.code) && !(_p!.flag('minor') && !pu.childAllowed)) pu,
+      if (!pu.essential &&
+          !_decided.containsKey(pu.code) &&
+          !(_p!.flag('minor') && !pu.childAllowed) &&
+          !(pu.needsPhone && (_p!.phone ?? '').isEmpty))
+        pu,
   ];
 
   bool get _ready =>
       _new.isNotEmpty &&
       _new.every((pu) => _answer.containsKey(pu.code)) &&
-      (_method != 'device_sms_otp' || _confirmed);
+      (_method != 'device_sms_otp' || _confirmed) &&
+      (!_p!.flag('read') || _witness.text.trim().isNotEmpty);
 
   Future<void> _save() async {
     final s = context.read<AppState>();
@@ -68,6 +81,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
       answers: Map.of(_answer),
       verifyMethod: _method,
       confirmed: _confirmed,
+      witness: _p!.flag('read') ? _witness.text.trim() : null,
     );
     if (!mounted) return;
     await showDialog<void>(
@@ -77,7 +91,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Muted(tr('Consent code — write it on her slip')),
+            Muted(tr('Consent code — write it on their slip')),
             const SizedBox(height: 8),
             SelectableText(code, style: const TextStyle(fontSize: 28, letterSpacing: 2, fontFamily: 'monospace')),
           ],
@@ -134,12 +148,12 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
                   Text('${trFor(l, 'New use')}: ${pu.title}', style: const TextStyle(fontWeight: FontWeight.w600)),
                   if (pu.description.isNotEmpty) Text(pu.description, style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 6),
-                  Muted(tr('Read this part of the notice to her')),
+                  Muted(tr('Read this part of the notice to them')),
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _read[pu.code] ?? false,
                     onChanged: (v) => setState(() => _read[pu.code] = v ?? false),
-                    title: Text(tr('I have read it to her'), style: const TextStyle(fontSize: 14)),
+                    title: Text(tr('I have read it to them'), style: const TextStyle(fontSize: 14)),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                   Row(
@@ -166,6 +180,16 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
           Muted(tr('Verified with the same method as last time: {0}.', [methodLabel])),
           if (_method == 'device_sms_otp' && (p.phone ?? '').isNotEmpty)
             OtpPanel(phone: p.phone!, lang: l, onConfirmed: () => setState(() => _confirmed = true)),
+          if (p.flag('read'))
+            TextField(
+              controller: _witness,
+              textCapitalization: TextCapitalization.words,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: tr('Witness name'),
+                helperText: tr('Needed because the notice was read to them'),
+              ),
+            ),
         ],
       ],
     );

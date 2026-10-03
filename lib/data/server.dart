@@ -20,6 +20,10 @@ abstract class Server {
   Future<Map<String, dynamic>> withdraw(Map<String, dynamic> args);
   Future<Map<String, dynamic>> submitRequest(Map<String, dynamic> args);
 
+  /// Tells the programme's coordinators that an adult who can't decide alone has no lawful guardian yet.
+  /// No personal data. Older servers don't have it; then nothing happens.
+  Future<void> guardianNeeded(String programme);
+
   /// People in a programme for the phone's offline store; null if the server is too old to serve them.
   Future<Map<String, dynamic>?> peopleForDevice(String programme, String? since);
 
@@ -233,4 +237,8 @@ class SdkServer implements Server {
   @override
   Future<Map<String, dynamic>> submitRequest(Map<String, dynamic> args) async =>
       Map<String, dynamic>.from(await _call('anumati.api.v1.rights.submit', args) as Map);
+
+  @override
+  Future<void> guardianNeeded(String programme) =>
+      _optional('anumati.api.v1.notifications.guardian_needed', {'programme': programme});
 }
