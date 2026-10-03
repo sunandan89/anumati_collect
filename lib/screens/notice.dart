@@ -13,11 +13,11 @@ import '../core/strings.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 
-/// M3 Notice (spec A1, A3): the live notice in her language. Choices unlock
-/// only after the audio has played through or the text has been read to the
-/// end. The audio is the reviewed recording when the organisation has one;
-/// otherwise the phone reads the (reviewed) notice text aloud with its own
-/// voice, so people who can't read still hear the whole notice.
+/// Notice and choices on one screen (spec A1, A3, A4): the live notice in the person's language, then a
+/// choice for each use. Choices unlock only after the notice has played through (the reviewed recording,
+/// or the phone's own voice reading the reviewed text), or the worker confirms it was read to the end.
+/// Every optional use starts off; Yes to all and No to all carry equal weight; essential uses are
+/// explained, never toggled. For a parent or guardian this is the last screen: tick and Save.
 class NoticeScreen extends StatefulWidget {
   const NoticeScreen({super.key, required this.draft});
   final CaptureDraft draft;
@@ -48,7 +48,6 @@ class _NoticeScreenState extends State<NoticeScreen> {
   void initState() {
     super.initState();
     _load();
-    _scroll.addListener(_onScroll);
   }
 
   Future<void> _load() async {
@@ -80,20 +79,79 @@ class _NoticeScreenState extends State<NoticeScreen> {
       }
     }
     setState(() => _loaded = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onScroll());
   }
 
-  void _onScroll() {
-    if (_player != null || d.noticeDone || !_scroll.hasClients) return;
-    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 24) {
-      setState(() {
-        d.noticeDone = true;
-        // The worker reads it to her when she needs help reading; otherwise she read it herself.
-        if (d.noticeDelivery.isEmpty) {
-          d.noticeDelivery = d.flags['read']! || d.needsGuardian ? 'read_aloud' : 'read_on_screen';
-        }
-      });
+  /// No recording, and the phone's voice wasn't used: the worker confirms the notice was read to the end.
+  void _readToEnd() => setState(() {
+    d.noticeDone = true;
+    if (d.noticeDelivery.isEmpty) {
+      d.noticeDelivery = d.needsHelp || d.needsGuardian ? 'read_aloud' : 'read_on_screen';
     }
+  });
+
+  bool _saving = false;
+
+  void _all(bool v) => setState(() {
+    for (final p in d.offered.where((p) => !p.essential)) {
+      d.choices[p.code] = v;
+    }
+  });
+
+  void _stopAudio() {
+    _player?.pause();
+    _speaking = false;
+    _tts.stop();
+  }
+
+  Future<void> _next() async {
+    _stopAudio();
+    if (isLastStep(d, 'notice')) {
+      setState(() => _saving = true);
+      await finishCapture(context, d);
+    } else {
+      goNext(context, d, 'notice');
+    }
+  }
+
+  Widget _purpose(NoticePurpose p) {
+    final l = d.lang;
+    final on = d.choices[p.code] ?? false;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(p.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        if (p.essential)
+          Muted(p.description.isNotEmpty ? p.description : trFor(l, 'Needed for the service'))
+        else
+          Muted([if (p.description.isNotEmpty) p.description, trFor(l, 'optional')].join(' · ')),
+      ],
+    );
+    if (p.essential) {
+      return PCard(
+        color: AC.sunk,
+        child: Row(
+          children: [
+            Expanded(child: text),
+            StatusChip(trFor(l, 'Required')),
+          ],
+        ),
+      );
+    }
+    return Opacity(
+      opacity: d.noticeDone ? 1 : 0.5,
+      child: PCard(
+        onTap: d.noticeDone ? () => setState(() => d.choices[p.code] = !on) : null,
+        child: Row(
+          children: [
+            Expanded(child: text),
+            Semantics(
+              label: p.title,
+              child: Switch(value: on, onChanged: d.noticeDone ? (v) => setState(() => d.choices[p.code] = v) : null),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -246,19 +304,49 @@ class _NoticeScreenState extends State<NoticeScreen> {
     final why = [
       for (final p in d.offered) '• ${p.title}${p.description.isNotEmpty ? ': ${p.description}' : ''}',
     ].join('\n');
+    final last = isLastStep(d, 'notice');
+    final missing = last ? missingText(d.missing) : null;
+    final details = <Widget>[
+      if (why.isNotEmpty) _section(trFor(l, 'Why we need this'), why),
+      if (n.fullText.isNotEmpty) _section(trFor(l, 'What we collect'), _plain(n.fullText)),
+      if (n.rightsText.isNotEmpty) _section(trFor(l, 'Your rights'), _plain(n.rightsText)),
+      if (n.withdrawalMethods.isNotEmpty) _section(trFor(l, 'How to withdraw'), _plain(n.withdrawalMethods)),
+      if (n.complaintRoute.isNotEmpty || n.dpoContact.isNotEmpty)
+        _section(
+          trFor(l, 'Complaints'),
+          [n.dpoContact, n.complaintRoute].where((s) => s.isNotEmpty).map(_plain).join('\n'),
+        ),
+      if (n.crossBorder.isNotEmpty) Note(trFor(l, 'Data may be sent outside India: {0}', [_plain(n.crossBorder)])),
+      if (_player == null && !d.noticeDone)
+        OutlinedButton.icon(
+          onPressed: _readToEnd,
+          icon: const Icon(Icons.done_all),
+          label: Text(
+            d.needsHelp || d.needsGuardian
+                ? tr('I have read the whole notice to them')
+                : tr('They have read the whole notice'),
+          ),
+        ),
+    ];
     return StepScaffold(
       controller: _scroll,
-      bar: StepBar(title: trFor(l, 'Notice'), subtitle: stepLabel(d, 'notice')),
-      footer: FilledButton(
-        onPressed: d.noticeDone
-            ? () {
-                _player?.pause();
-                _speaking = false;
-                _tts.stop();
-                goNext(context, d, 'notice');
-              }
-            : null,
-        child: Text(trFor(l, 'Continue')),
+      bar: StepBar(title: trFor(l, 'Notice and choices'), subtitle: stepLabel(d, 'notice')),
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (missing != null) ...[
+            Text(
+              missing,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AC.danger),
+            ),
+            const SizedBox(height: 6),
+          ],
+          FilledButton(
+            onPressed: (last ? missing == null : d.noticeDone) && !_saving ? _next : null,
+            child: Text(last ? tr('Save') : (n.label('label_save') ?? trFor(l, 'Continue'))),
+          ),
+        ],
       ),
       children: [
         if (l != 'en' && n.translation == null)
@@ -324,22 +412,50 @@ class _NoticeScreenState extends State<NoticeScreen> {
             child: Image.file(File(_card!), fit: BoxFit.contain, semanticLabel: trFor(l, 'Notice')),
           ),
         if (n.summary.isNotEmpty) Text(n.summary, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        if (why.isNotEmpty) _section(trFor(l, 'Why we need this'), why),
-        if (n.fullText.isNotEmpty) _section(trFor(l, 'What we collect'), _plain(n.fullText)),
-        if (n.rightsText.isNotEmpty) _section(trFor(l, 'Your rights'), _plain(n.rightsText)),
-        if (n.withdrawalMethods.isNotEmpty) _section(trFor(l, 'How to withdraw'), _plain(n.withdrawalMethods)),
-        if (n.complaintRoute.isNotEmpty || n.dpoContact.isNotEmpty)
-          _section(
-            trFor(l, 'Complaints'),
-            [n.dpoContact, n.complaintRoute].where((s) => s.isNotEmpty).map(_plain).join('\n'),
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          initiallyExpanded: _player == null,
+          title: Text(
+            trFor(l, 'Read the full notice (data, rights, how to withdraw)'),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
-        if (n.crossBorder.isNotEmpty) Note(trFor(l, 'Data may be sent outside India: {0}', [_plain(n.crossBorder)])),
+          children: [
+            for (final w in details) ...[w, const SizedBox(height: 8)],
+          ],
+        ),
+        Text(trFor(l, 'Choose for each use'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        for (final p in d.offered) _purpose(p),
+        if (d.someHidden)
+          Muted(
+            d.flags['minor']!
+                ? trFor(l, 'Some uses are not offered for children.')
+                : trFor(l, 'Uses that need a phone are not offered.'),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: d.noticeDone ? () => _all(true) : null,
+                child: Text(n.label('label_yes_all') ?? trFor(l, 'Yes to all')),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: d.noticeDone ? () => _all(false) : null,
+                child: Text(n.label('label_no_all') ?? trFor(l, 'No to all')),
+              ),
+            ),
+          ],
+        ),
         if (!d.noticeDone)
           Note(
             _player != null
                 ? trFor(l, 'Choices unlock when the notice has played through')
-                : trFor(l, 'Choices unlock when you have read to the end'),
+                : trFor(l, 'Choices unlock when the whole notice has been heard or read'),
           ),
+        if (last)
+          CheckCard(value: d.attested, label: attestationText(d), onChanged: (v) => setState(() => d.attested = v)),
       ],
     );
   }

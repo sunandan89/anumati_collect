@@ -32,6 +32,14 @@ class FakeServer implements Server {
   @override
   Future<String?> principalName(String ref) async => principals.containsKey(ref) ? 'dp-$ref' : null;
 
+  final told = <String>[];
+
+  @override
+  Future<void> guardianNeeded(String programme) async {
+    calls.add('guardian_needed');
+    told.add(programme);
+  }
+
   @override
   Future<String> guardianLink(Map<String, dynamic> doc) async {
     calls.add('link');

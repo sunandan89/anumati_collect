@@ -28,6 +28,14 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Draw with OpenGL ES instead of Vulkan. On many budget phones the Vulkan path loses its
+                 drawing surface when the app returns after a long pause (with screenshots blocked),
+                 so the first tap shows a black screen. OpenGL ES is Flutter's own fallback and
+                 works on every Android 8+ phone. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.ImpellerBackend"
+              android:value="opengles"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

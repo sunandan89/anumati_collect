@@ -55,7 +55,7 @@ class ReceiptScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Muted(tr('Consent code — write it on her slip')),
+                Muted(tr('Consent code — write it on their slip')),
                 const SizedBox(height: 6),
                 SelectableText(
                   d.shortCode,
@@ -79,14 +79,14 @@ class ReceiptScreen extends StatelessWidget {
               ],
             ),
           ),
-          PCard(child: Text(tr('Tell her: SMS STOP with this code, a missed call, or tell any worker to withdraw.'))),
+          PCard(child: Text(tr('Tell them: SMS STOP with this code, a missed call, or tell any worker to withdraw.'))),
           if (d.phone.isNotEmpty)
             OutlinedButton.icon(
               onPressed: () => _sendReceipt(d),
               icon: const Icon(Icons.sms_outlined),
               label: Text(tr('Send receipt by SMS')),
             ),
-          if (d.phone.isNotEmpty) Center(child: Muted(tr('Opens your SMS app with her receipt. You tap Send.'))),
+          if (d.phone.isNotEmpty) Center(child: Muted(tr('Opens your SMS app with their receipt. You tap Send.'))),
         ],
       ),
     );

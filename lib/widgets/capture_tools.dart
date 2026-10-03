@@ -84,7 +84,7 @@ class _OtpPanelState extends State<OtpPanel> {
         ),
         if (_otp != null) ...[
           const SizedBox(height: 10),
-          Muted(tr('Code she reads back')),
+          Muted(tr('Code they read back')),
           const SizedBox(height: 6),
           TextField(
             controller: _code,

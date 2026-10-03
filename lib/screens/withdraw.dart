@@ -117,7 +117,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     if (!options.containsKey(_want)) _want = 'all';
     final hasQuery = _query.text.trim().length >= 2;
     return StepScaffold(
-      bar: StepBar(title: tr('Log what she asked for'), subtitle: tr('Withdrawal or request')),
+      bar: StepBar(title: tr('Log what they asked for'), subtitle: tr('Withdrawal or request')),
       footer: FilledButton(onPressed: _saving || (!hasQuery && _who == null) ? null : _save, child: Text(tr('Save'))),
       children: [
         Muted(tr('How did it reach you?')),
@@ -162,7 +162,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             ),
           ),
         if (hasQuery && _matches.isEmpty) Note(tr('Not on this phone. It goes to the office inbox with the code.')),
-        Muted(tr('What does she want?')),
+        Muted(tr('What do they want?')),
         for (final e in options.entries)
           Opt(value: e.key, group: _want, onChanged: (v) => setState(() => _want = v), title: e.value),
       ],
