@@ -222,8 +222,11 @@ class CaptureDraft {
     if (flags['pwd']! && guardianRelation.isEmpty) 'relation',
     if (guardianNeedsOrder && guardianAuthorityRef.trim().isEmpty) 'order number',
     if (guardianName.trim().isEmpty) 'name',
+    if (guardianPhone.isNotEmpty && !_validMobile(guardianPhone)) 'mobile number',
     if (!guardianVerified && guardianDoc == null) guardianPhone.trim().isEmpty ? 'ID photo (no phone)' : 'SMS code',
   ];
+
+  static bool _validMobile(String digits) => digits.length == 10 || (digits.length == 12 && digits.startsWith('91'));
 
   String get _linkType => switch (guardianType) {
     'mother' || 'father' => 'parent',
@@ -344,7 +347,7 @@ class CaptureDraft {
         },
       },
     // The order photo first: it is the one attached to the guardian link.
-    'guardian_evidence': [?guardianOrder?.toJson(), ?guardianDoc?.toJson()],
+    'guardian_evidence': [if (guardianNeedsOrder) ?guardianOrder?.toJson(), ?guardianDoc?.toJson()],
     'evidence': [?voice?.toJson(), ?thumb?.toJson()],
     'event': {
       'event_uuid': eventUuid,

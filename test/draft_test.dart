@@ -121,6 +121,9 @@ void main() {
       ..guardianName = 'Meena K. (fictional)'
       ..guardianPhone = '9000033333';
     expect(d.guardianMissing, ['SMS code']);
+    d.guardianPhone = '90000';
+    expect(d.guardianMissing, ['mobile number', 'SMS code']);
+    d.guardianPhone = '9000033333';
     d.guardianVerified = true;
     expect(d.guardianMissing, isEmpty);
     expect(flowSteps(d), ['principal', 'guardian', 'notice']);
@@ -147,6 +150,11 @@ void main() {
       ..guardianVerified = true;
     expect(child.guardianMissing, ['order number']);
     child.guardianAuthorityRef = 'GO-12/2026';
+    child.guardianOrder = EvidenceRef('o.jpg', 'guardian_order', 'c' * 64);
+    expect((child.toPayload(DateTime(2026))['guardian_evidence'] as List).length, 1);
+    child.guardianType = 'mother';
+    expect(child.toPayload(DateTime(2026))['guardian_evidence'], isEmpty, reason: 'no order photo on a parent link');
+    child.guardianType = 'other';
     final link = (child.toPayload(DateTime(2026))['guardian'] as Map)['link'] as Map;
     expect(link['guardian_type'], 'legal_guardian');
     expect(link['authority_ref'], 'GO-12/2026');

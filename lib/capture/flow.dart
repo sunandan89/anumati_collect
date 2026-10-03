@@ -65,6 +65,7 @@ String? missingText(List<String> missing) {
     'relation': tr('the relation'),
     'order number': tr('the order number'),
     'name': tr('the name'),
+    'mobile number': tr('a 10-digit mobile number'),
     'ID photo (no phone)': tr("a photo of the guardian's ID (no phone)"),
   };
   return tr('To save: {0}', [missing.map((m) => words[m] ?? m).join(', ')]);

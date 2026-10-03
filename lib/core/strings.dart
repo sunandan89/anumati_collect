@@ -397,6 +397,7 @@ const Map<String, String> _hi = {
   'play the whole notice': 'पूरी सूचना सुनाएँ',
   'the SMS code': 'SMS कोड',
   'the name': 'नाम',
+  'a 10-digit mobile number': '10 अंकों का मोबाइल नंबर',
   'the order number': 'आदेश संख्या',
   'the relation': 'रिश्ता',
   "the witness's name": 'गवाह का नाम',
