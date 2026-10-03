@@ -134,8 +134,11 @@ class Syncer {
         final link = Map<String, dynamic>.from(guardian['link'] as Map)
           ..['principal'] = principalName
           ..['guardian'] = guardianName;
-        if (guardianEvidence.isNotEmpty) {
-          link['evidence'] = files[guardianEvidence.first['local']];
+        // The order photo goes in 'evidence', the guardian's ID photo in 'id_document' (servers without
+        // that field ignore it; the photo is still uploaded with the person's record).
+        for (final e in guardianEvidence) {
+          final field = e['kind'] == 'guardian_document' && guardianEvidence.length > 1 ? 'id_document' : 'evidence';
+          link[field] ??= files[e['local']];
         }
         progress['guardian_link'] = await server.guardianLink(link);
         await save();

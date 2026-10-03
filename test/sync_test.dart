@@ -252,6 +252,36 @@ void main() {
     expect(server.events['u-4']!['guardian_link'], 'GL-dp-MHU-1|dp-MHU-1-G');
   });
 
+  test("a guardian's order photo and ID photo land in their own fields on the guardian link", () async {
+    Future<Map<String, String>> photo(String name, String kind) async {
+      final f = File('${tmp.path}/$name.jpg')..writeAsStringSync('photo $name (fictional)');
+      final (id, sha) = await store.files!.adopt(f, 'jpg');
+      return {'local': id, 'kind': kind, 'sha256': sha};
+    }
+
+    final order = await photo('order', 'guardian_order');
+    final id = await photo('id', 'guardian_document');
+    final payload = consentPayload(
+      'u-6',
+      guardian: {
+        'principal': {'principal_ref': 'MHU-1-G', 'full_name': 'Suresh K. (fictional)'},
+        'link': {'guardian_type': 'committee', 'authority_ref': 'LLC/2026/0412', 'verification_method': 'document'},
+      },
+    )..['guardian_evidence'] = [order, id];
+    await store.enqueue(kind: 'consent', eventUuid: 'u-6', principalRef: 'MHU-1', payload: payload);
+    await syncer.run();
+    final link = server.links.values.single;
+    expect(link['evidence'], '/private/files/u-6-guardian_order.jpg');
+    expect(link['id_document'], '/private/files/u-6-guardian_document.jpg');
+  });
+
+  test('telling the coordinator syncs with the programme only', () async {
+    await store.enqueue(kind: 'guardian_needed', programme: 'MHU', payload: {'programme': 'MHU'});
+    final r = await syncer.run();
+    expect(r.synced, 1);
+    expect(server.told, ['MHU']);
+  });
+
   test('local decisions: an older event never overrides a newer one', () async {
     await store.decide('MHU-1', 'MHU', 'follow', 'withdrawn', '2026-09-22 10:00:00', 'w');
     await store.decide('MHU-1', 'MHU', 'follow', 'granted', '2026-09-20 11:20:00', 'g');
