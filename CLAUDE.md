@@ -10,3 +10,4 @@ Flutter field app for Anumati (server: `sunandan89/anumati`, spec in its `docs/a
 - No PII in logs or error messages. All sample data is fictional.
 - Text: English source strings in `lib/core/strings.dart`, Hindi alongside; server Translations override the bundled Hindi.
 - Before pushing: `dart format lib test`, `flutter analyze`, `flutter test`.
+- A change a field worker or tester would notice also updates the product guide and QA test cases in the server repo (`sunandan89/anumati`, `docs/guide/`) in a companion PR, so the published guide matches what is merged.
