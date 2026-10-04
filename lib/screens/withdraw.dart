@@ -66,6 +66,12 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
   String get _channel => _source == 'person' ? 'field_worker' : 'slip';
 
+  /// What was typed, if it looks like a receipt code (AN-7K2Q9C or 7K2Q9C): the office uses it to find her.
+  String? get _code {
+    final q = _query.text.trim().toUpperCase();
+    return RegExp(r'^(AN-)?[A-Z2-7]{6}$').hasMatch(q) ? (q.startsWith('AN-') ? q : 'AN-$q') : null;
+  }
+
   Future<void> _save() async {
     final s = context.read<AppState>();
     setState(() => _saving = true);
@@ -77,6 +83,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
           principalRef: who.ref,
           channel: _channel,
           purposes: _want == 'all' ? null : [_want.substring(5)],
+          paperTrail: _paper.text.trim(),
         );
       } else {
         await s.saveRequest(
@@ -84,6 +91,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
           channel: _channel,
           note: 'Code or ID given: $code${_want == 'all' ? '' : ' · purpose: ${_want.substring(5)}'}',
           paperTrail: _paper.text.trim(),
+          consentCode: _code,
         );
       }
     } else {
@@ -93,6 +101,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
         principalRef: who?.ref,
         note: who == null ? 'Code or ID given: $code' : null,
         paperTrail: _paper.text.trim(),
+        consentCode: who == null ? _code : null,
       );
     }
     if (!mounted) return;
@@ -116,9 +125,14 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     };
     if (!options.containsKey(_want)) _want = 'all';
     final hasQuery = _query.text.trim().length >= 2;
+    // A person on this phone with no optional use switched on has nothing to stop.
+    final nothingToStop = _who != null && granted.isEmpty && _want == 'all';
     return StepScaffold(
       bar: StepBar(title: tr('Log what they asked for'), subtitle: tr('Withdrawal or request')),
-      footer: FilledButton(onPressed: _saving || (!hasQuery && _who == null) ? null : _save, child: Text(tr('Save'))),
+      footer: FilledButton(
+        onPressed: _saving || nothingToStop || (!hasQuery && _who == null) ? null : _save,
+        child: Text(tr('Save')),
+      ),
       children: [
         Muted(tr('How did it reach you?')),
         SegmentedButton<String>(
@@ -165,6 +179,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
         Muted(tr('What do they want?')),
         for (final e in options.entries)
           Opt(value: e.key, group: _want, onChanged: (v) => setState(() => _want = v), title: e.value),
+        if (nothingToStop) Note(tr('No optional use is on for this person, so there is nothing to stop.')),
       ],
     );
   }

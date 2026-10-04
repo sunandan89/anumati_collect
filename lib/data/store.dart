@@ -132,7 +132,7 @@ class Store {
     return rows.isEmpty ? null : LocalPrincipal.fromRow(rows.first);
   }
 
-  /// Offline search over people captured on this phone: name, ID or code.
+  /// Offline search over people on this phone (captured here or downloaded): name, ID or receipt code.
   Future<List<LocalPrincipal>> search(String q, {String? programme}) async {
     final like = '%${q.trim()}%';
     final code = q.trim().toUpperCase();
@@ -140,9 +140,9 @@ class Store {
       '''SELECT DISTINCT p.* FROM principals p
          LEFT JOIN outbox o ON o.principal_ref = p.ref
          WHERE (? IS NULL OR p.programme = ?)
-           AND (p.full_name LIKE ? OR p.ref LIKE ? OR o.short_code = ? OR o.short_code = ?)
+           AND (p.full_name LIKE ? OR p.ref LIKE ? OR o.short_code IN (?, ?) OR p.last_code IN (?, ?))
          ORDER BY p.created_at DESC LIMIT 50''',
-      [programme, programme, like, like, code, 'AN-$code'],
+      [programme, programme, like, like, code, 'AN-$code', code, 'AN-$code'],
     );
     return rows.map(LocalPrincipal.fromRow).toList();
   }
