@@ -345,9 +345,16 @@ class AppState extends ChangeNotifier {
 
   /// Verification methods this programme allows that work from the phone.
   List<String> get allowedVerification {
-    const onPhone = ['device_sms_otp', 'deferred', 'evidence_only'];
+    const onPhone = ['server_otp', 'deferred', 'evidence_only'];
     final rows = (programmeDoc?['verification_methods'] as List?) ?? const [];
-    final allowed = [for (final r in rows) (r as Map)['verification_method'] as String];
+    final allowed = [
+      for (final r in rows)
+        // A programme that allowed the phone's own SMS code gets the server-sent code instead.
+        switch ((r as Map)['verification_method'] as String) {
+          'device_sms_otp' => 'server_otp',
+          final String m => m,
+        },
+    ];
     return allowed.isEmpty ? onPhone : onPhone.where(allowed.contains).toList();
   }
 
@@ -441,20 +448,19 @@ class AppState extends ChangeNotifier {
   }
 
   /// Just-in-time consent for purposes added to the notice later.
-  Future<String> saveAddedPurposes({
+  /// Returns the receipt code and the event's id (for the server-sent code that confirms it).
+  Future<({String code, String eventUuid})> saveAddedPurposes({
     required LocalPrincipal principal,
     required Notice notice,
     required Map<String, bool> answers,
     required String verifyMethod,
-    required bool confirmed,
     String? witness,
   }) async {
     final d = CaptureDraft(programme: programme!, deviceId: deviceId)
       ..principalRef = principal.ref
       ..lang = principal.lang
       ..notice = notice
-      ..verifyMethod = verifyMethod
-      ..otpConfirmed = confirmed;
+      ..verifyMethod = verifyMethod;
     d.flags.addAll(principal.flags);
     final now = DateTime.now();
     final at = CaptureDraft.deviceTime(now);
@@ -503,7 +509,7 @@ class AppState extends ChangeNotifier {
     }
     await store!.savePrincipal(principal.copyWith(lastCode: d.shortCode));
     await _afterWrite();
-    return d.shortCode;
+    return (code: d.shortCode, eventUuid: d.eventUuid);
   }
 
   Future<void> _afterWrite() async {
@@ -607,6 +613,32 @@ class AppState extends ChangeNotifier {
       return await server!.hear(clip, language).timeout(const Duration(seconds: 20));
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Sends this consent to the server now, then asks the server to text a code to the person's phone (or
+  /// their guardian's). The code goes from the server straight to that phone; this phone never sees it.
+  /// Returns {sent: true, to} or {sent: false, reason: offline | not_set_up | not_sent | failed | error}.
+  Future<Map<String, dynamic>> sendCode(String eventUuid) async {
+    if (server == null || !await online()) return {'sent': false, 'reason': 'offline'};
+    for (var i = 0; i < 5 && await store!.statusOf(eventUuid) == 'pending'; i++) {
+      await sync(quiet: true);
+      if (await store!.statusOf(eventUuid) == 'pending') await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    final status = await store!.statusOf(eventUuid);
+    if (status != 'synced') return {'sent': false, 'reason': status == 'failed' ? 'failed' : 'offline'};
+    try {
+      return await server!.sendCode(eventUuid);
+    } on ServerFailure catch (f) {
+      return {'sent': false, 'reason': f.kind == Failure.offline ? 'offline' : 'error', 'message': f.message};
+    }
+  }
+
+  Future<Map<String, dynamic>> checkCode(String eventUuid, String code) async {
+    try {
+      return await server!.checkCode(eventUuid, code);
+    } on ServerFailure catch (f) {
+      return {'confirmed': false, 'reason': f.kind == Failure.offline ? 'offline' : 'error', 'message': f.message};
     }
   }
 

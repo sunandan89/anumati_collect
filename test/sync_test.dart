@@ -35,6 +35,12 @@ class FakeServer implements Server {
   final told = <String>[];
 
   @override
+  Future<Map<String, dynamic>> sendCode(String consentId) async => {'sent': true, 'to': '9000011XXX'};
+
+  @override
+  Future<Map<String, dynamic>> checkCode(String consentId, String code) async => {'confirmed': code == '123456'};
+
+  @override
   Future<void> guardianNeeded(String programme) async {
     calls.add('guardian_needed');
     told.add(programme);

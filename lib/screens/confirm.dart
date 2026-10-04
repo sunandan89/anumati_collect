@@ -17,7 +17,7 @@ import '../widgets/common.dart';
 
 /// Confirm and save, when the person consents for themself (spec section 5; design A1). One screen with
 /// only what this person's consent needs:
-/// - a phone: the SMS code they read back (or confirm later by SMS);
+/// - a phone: after Save, a code the server texts to it, which they read back (or confirm later by SMS);
 /// - no phone, or the notice was read to them: their recorded "haan" or a photo of their signature or
 ///   thumbprint (at least one);
 /// - the notice was read to them: a witness's name (relation optional);
@@ -137,40 +137,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     ),
   );
 
-  Widget _phoneGroup() {
-    final sms = d.allowedMethods.contains('device_sms_otp');
-    final later = d.allowedMethods.contains('deferred');
-    return _group(tr('Verify their phone'), d.phoneChecked, [
-      if (d.verifyMethod == 'deferred')
-        Row(
-          children: [
-            Expanded(child: Muted(tr('An SMS goes to {0} after sync: “Reply STOP to withdraw”.', [d.phone]))),
-            if (sms)
-              TextButton(
-                onPressed: () => setState(() => d.verifyMethod = 'device_sms_otp'),
-                child: Text(tr('Use a code now')),
-              ),
-          ],
-        )
-      else ...[
-        if (sms)
-          OtpPanel(
-            phone: d.phone,
-            lang: d.lang,
-            onConfirmed: () => setState(() {
-              d.verifyMethod = 'device_sms_otp';
-              d.otpConfirmed = true;
-            }),
-          ),
-        if (later && !d.otpConfirmed)
-          TextButton(
-            onPressed: () => setState(() => d.verifyMethod = 'deferred'),
-            child: Text(tr("Can't get the code now? Confirm later by SMS")),
-          ),
-      ],
-    ]);
-  }
-
   Widget _proofGroup(AppState s) {
     final photoKind = d.needsHelp ? 'thumbprint' : 'signature';
     return _group(tr('Record their yes · choose at least one'), d.voice != null || d.thumb != null, [
@@ -205,7 +171,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     final s = context.read<AppState>();
     d.witness = _witness.text;
     d.witnessRelation = _relation.text;
-    if (d.phoneCheck && !d.allowedMethods.contains('device_sms_otp')) d.verifyMethod = 'deferred';
     final byCode = {for (final p in d.offered) p.code: p.title};
     final missing = missingText(d.missing);
     final facts = [
@@ -248,8 +213,8 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
             ],
           ),
         ),
-        if (d.phoneCheck && d.evidenceNeeded) Muted(tr('Both needed: the phone check and their recorded yes.')),
-        if (d.phoneCheck) _phoneGroup(),
+        if (d.phoneCheck)
+          Note(tr('After Save, you can send a code to their phone from the server. They read it out to confirm.')),
         if (d.evidenceNeeded) _proofGroup(s),
         if (d.witnessNeeded) ...[
           Text(

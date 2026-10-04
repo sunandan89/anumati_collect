@@ -9,8 +9,9 @@ import '../core/theme.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
 
-/// Step 2 for a parent or guardian (spec C1, C2; design A2-A4). The guardian is verified here by an SMS
-/// code to their phone; a photo of their ID is optional, and needed only when they have no phone.
+/// Step 2 for a parent or guardian (spec C1, C2; design A2-A4). The guardian is verified after Save by a
+/// code the server texts to their phone; a photo of their ID is optional, and needed only when they have
+/// no phone.
 /// A guardian other than a parent, and every guardian of an adult who can't decide alone, gives the
 /// number of the order that appointed them. With no order yet, consent can't be taken: nothing is saved
 /// and the coordinator is told, without the person's details.
@@ -43,10 +44,7 @@ class _GuardianScreenState extends State<GuardianScreen> {
     d.guardianName = _name.text.trim();
     d.guardianAuthorityRef = _order.text.trim();
     final digits = _phone.text.replaceAll(RegExp(r'\D'), '');
-    if (digits != d.guardianPhone) {
-      d.guardianPhone = digits;
-      d.guardianVerified = false; // a new number needs a new code
-    }
+    d.guardianPhone = digits;
   }
 
   Widget _chips(Map<String, String> options, String selected, ValueChanged<String> onSelected) => Wrap(
@@ -192,15 +190,8 @@ class _GuardianScreenState extends State<GuardianScreen> {
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(labelText: parent ? tr("Parent's mobile") : tr("Guardian's mobile")),
         ),
-        if (d.guardianPhone.length >= 10) ...[
-          Muted(parent ? tr('Verify the parent') : tr('Verify the guardian')),
-          OtpPanel(
-            key: ValueKey(d.guardianPhone),
-            phone: d.guardianPhone,
-            lang: d.lang,
-            onConfirmed: () => setState(() => d.guardianVerified = true),
-          ),
-        ],
+        if (d.guardianPhone.length >= 10)
+          Muted(tr('After Save, a code is sent to this number from the server. They read it out to confirm.')),
         _photo(
           switch ((parent, d.guardianPhone.isEmpty)) {
             (true, true) => tr("Photo of the parent's ID"),

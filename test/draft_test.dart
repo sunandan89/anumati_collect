@@ -45,14 +45,14 @@ void main() {
       ..who = 'child'
       ..guardianName = 'Sunita D. (fictional)'
       ..guardianPhone = '9000022222'
-      ..guardianVerified = true
       ..settleVerification();
     final p = d.toPayload(DateTime(2026, 9, 27, 10, 5, 9));
     final e = p['event'] as Map;
     expect(e['event_uuid'], d.eventUuid);
     expect(d.shortCode, receiptCode(d.eventUuid));
     expect(e['device_time'], '2026-09-27 10:05:09');
-    expect(e['verification_status'], 'confirmed');
+    expect(e['verification_method'], 'server_otp', reason: "the server texts the guardian's phone after Save");
+    expect(e['verification_status'], 'recorded', reason: 'confirmed only when the server checks the code');
     expect(e['notice'], 'MHU-v1.0.0');
     expect(e.containsKey('witness'), isFalse);
     final link = (p['guardian'] as Map)['link'] as Map;
@@ -60,20 +60,24 @@ void main() {
     expect(link['guardian_type'], 'parent');
     expect(link['relation'], 'Mother');
     expect(link.containsKey('authority_ref'), isFalse, reason: 'a parent needs no order');
+    expect(link['verification_method'], 'server_otp');
     expect((p['principal'] as Map)['is_minor'], 1);
     expect((p['principal'] as Map).containsKey('phone'), isFalse, reason: "the child's own phone is not asked");
   });
 
-  test('reads, has a phone: the SMS code (or confirm later) and the tick; no witness, no evidence', () {
+  test('reads, has a phone: just the tick; the server texts a code after Save, or confirm later offline', () {
     final d = draft()..noticeDone = true;
-    expect(d.missing, ['SMS code', 'tick']);
+    expect(d.missing, ['tick'], reason: 'no code is typed before Save: the worker never sees one');
     expect(d.evidenceNeeded, isFalse);
     expect(d.witnessNeeded, isFalse);
-    d
-      ..attested = true
-      ..verifyMethod = 'deferred';
+    d.attested = true;
     expect(d.ready, isTrue);
     d.settleVerification();
+    expect(d.verifyMethod, 'server_otp');
+    expect(d.verificationStatus, 'recorded');
+    d
+      ..online = false
+      ..settleVerification();
     expect(d.verifyMethod, 'deferred');
     expect(d.captureMode, 'self_worker_device');
   });
@@ -96,36 +100,32 @@ void main() {
       ..flags['read'] = true
       ..noticeDone = true
       ..attested = true;
-    expect(d.missing, ['SMS code', 'proof', 'witness']);
+    expect(d.missing, ['proof', 'witness']);
     d
-      ..otpConfirmed = true
       ..thumb = EvidenceRef('1.jpg', 'thumbprint', 'a' * 64)
       ..witness = 'Asha (fictional)';
     expect(d.ready, isTrue);
     expect(d.captureMode, 'assisted_thumbprint');
     d.settleVerification();
-    expect(d.verificationStatus, 'confirmed');
+    expect(d.verifyMethod, 'server_otp');
     expect((d.toPayload(DateTime(2026))['event'] as Map)['witness'], 'Asha (fictional)');
   });
 
-  test('a device OTP not yet confirmed is only recorded; evidence only is its own status', () {
+  test('a code is never confirmed on the phone; evidence only is its own status', () {
     final d = draft()..verifyMethod = 'device_sms_otp';
     expect(d.verificationStatus, 'recorded');
     d.verifyMethod = 'evidence_only';
     expect(d.verificationStatus, 'evidence_only');
   });
 
-  test('guardian journeys: three screens, verified by SMS or an ID photo, no witness or voice', () {
+  test('guardian journeys: three screens, a server code or an ID photo, no witness or voice', () {
     final d = draft()
       ..who = 'child'
       ..guardianName = 'Meena K. (fictional)'
-      ..guardianPhone = '9000033333';
-    expect(d.guardianMissing, ['SMS code']);
-    d.guardianPhone = '90000';
-    expect(d.guardianMissing, ['mobile number', 'SMS code']);
+      ..guardianPhone = '90000';
+    expect(d.guardianMissing, ['mobile number']);
     d.guardianPhone = '9000033333';
-    d.guardianVerified = true;
-    expect(d.guardianMissing, isEmpty);
+    expect(d.guardianMissing, isEmpty, reason: 'the code is sent by the server after Save');
     expect(flowSteps(d), ['principal', 'guardian', 'notice']);
     d
       ..noticeDone = true
@@ -147,7 +147,7 @@ void main() {
       ..who = 'child'
       ..guardianType = 'other'
       ..guardianName = 'Ravi S. (fictional)'
-      ..guardianVerified = true;
+      ..guardianPhone = '9000044444';
     expect(child.guardianMissing, ['order number']);
     child.guardianAuthorityRef = 'GO-12/2026';
     child.guardianOrder = EvidenceRef('o.jpg', 'guardian_order', 'c' * 64);
@@ -162,7 +162,7 @@ void main() {
     final adult = draft()
       ..who = 'guardian'
       ..guardianName = 'Suresh K. (fictional)'
-      ..guardianVerified = true;
+      ..guardianPhone = '9000055555';
     expect(adult.guardianType, 'committee');
     expect(adult.guardianMissing, ['relation', 'order number']);
     adult
