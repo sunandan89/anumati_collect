@@ -1,11 +1,5 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:record/record.dart';
 
 import '../app_state.dart';
 import '../capture/draft.dart';
@@ -14,6 +8,7 @@ import '../core/strings.dart';
 import '../core/theme.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
+import '../widgets/voice_haan.dart';
 
 /// Confirm and save, when the person consents for themself (spec section 5; design A1). One screen with
 /// only what this person's consent needs:
@@ -33,85 +28,15 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
   CaptureDraft get d => widget.draft;
   late final _witness = TextEditingController(text: d.witness);
   late final _relation = TextEditingController(text: d.witnessRelation);
-  final _recorder = AudioRecorder();
-  bool _recording = false;
-  bool _listening = false;
-  Map<String, dynamic>? _heard;
   bool _saving = false;
-  Timer? _limit;
-  int _seconds = 0;
 
   @override
-  void dispose() {
-    _limit?.cancel();
-    _recorder.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggleRecording(AppState s) async {
-    if (_recording) {
-      await _stop(s);
-      return;
-    }
-    if (!await _recorder.hasPermission()) {
-      if (mounted) toast(context, tr('Microphone permission is needed to record.'));
-      return;
-    }
-    final dir = await getTemporaryDirectory();
-    final path = p.join(dir.path, 'voice-${DateTime.now().microsecondsSinceEpoch}.m4a');
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 48000, sampleRate: 16000),
-      path: path,
-    );
-    _seconds = 0;
-    _limit = Timer.periodic(const Duration(seconds: 1), (t) {
-      setState(() => _seconds++);
-      if (_seconds >= 60) _stop(s);
+  void initState() {
+    super.initState();
+    // Which route the code takes depends on internet now (the programme may also always use the worker's phone).
+    context.read<AppState>().online().then((v) {
+      if (mounted) setState(() => d.online = v);
     });
-    setState(() => _recording = true);
-  }
-
-  Future<void> _stop(AppState s) async {
-    _limit?.cancel();
-    final path = await _recorder.stop();
-    setState(() => _recording = false);
-    if (path == null) return;
-    final bytes = await File(path).readAsBytes();
-    final (id, sha) = await s.store!.files!.adopt(File(path), 'm4a');
-    setState(() {
-      d.voice = EvidenceRef(id, 'audio', sha);
-      _heard = null;
-      _listening = s.voiceHelper;
-    });
-    if (!s.voiceHelper) return;
-    // Optional hint (Sarvam): what was heard, and whether it sounds like yes or no. Never decides.
-    final heard = await s.hearClip(bytes, d.lang);
-    if (mounted) {
-      setState(() {
-        _listening = false;
-        _heard = heard;
-      });
-    }
-  }
-
-  Widget _hint() {
-    if (_listening) return Muted(tr('Checking what was said…'));
-    final h = _heard;
-    if (h == null) return const SizedBox.shrink();
-    final (label, tone) = switch (h['meaning'] as String?) {
-      'yes' => (tr('Sounds like yes'), Tone.ok),
-      'no' => (tr('Sounds like no'), Tone.danger),
-      _ => (tr('Not clear — listen again and decide'), Tone.warn),
-    };
-    return Row(
-      children: [
-        StatusChip(label, tone: tone),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Muted('${tr('Heard: “{0}”', [h['transcript'] ?? ''])} · ${tr('You decide; this is only a hint.')}'),
-        ),
-      ],
-    );
   }
 
   /// A dashed group that says how many of its items are needed, with a ✓ once done.
@@ -137,20 +62,48 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     ),
   );
 
+  Widget _voice() => VoiceHaanTile(
+    title: tr('Voice: their “haan”'),
+    value: d.voice,
+    lang: d.lang,
+    onSaved: (r) => setState(() => d.voice = r),
+  );
+
+  /// Code from the worker's own phone: the worker sees it, so the voice "haan" is required with it.
+  Widget _workerCodeGroup() {
+    final later = d.allowedMethods.contains('deferred');
+    final codeDone = d.otpConfirmed || d.verifyMethod == 'deferred';
+    return _group(tr('Check their phone · both needed'), codeDone && d.voice != null, [
+      Muted(
+        d.online
+            ? tr('This programme sends codes from your phone. Their voice “haan” is needed with the code.')
+            : tr('No internet: the code goes from your phone. Their voice “haan” is needed with it.'),
+      ),
+      if (d.verifyMethod == 'deferred')
+        Muted(tr('Confirm later: an SMS goes to {0} after sync.', [d.phone]))
+      else ...[
+        OtpPanel(
+          phone: d.phone,
+          lang: d.lang,
+          onConfirmed: () => setState(() {
+            d.verifyMethod = 'device_sms_otp';
+            d.otpConfirmed = true;
+          }),
+        ),
+        if (later && !d.otpConfirmed)
+          TextButton(
+            onPressed: () => setState(() => d.verifyMethod = 'deferred'),
+            child: Text(tr("Can't get the code now? Confirm later by SMS")),
+          ),
+      ],
+      _voice(),
+    ]);
+  }
+
   Widget _proofGroup(AppState s) {
     final photoKind = d.needsHelp ? 'thumbprint' : 'signature';
     return _group(tr('Record their yes · choose at least one'), d.voice != null || d.thumb != null, [
-      Tile(
-        icon: _recording ? Icons.stop : Icons.mic_none,
-        title: tr('Voice: their “haan”'),
-        subtitle: _recording ? '${tr('Recording… tap to stop')} 0:${_seconds.toString().padLeft(2, '0')}' : null,
-        trailing: StatusChip(
-          d.voice != null && !_recording ? tr('Saved') : tr('Tap to record'),
-          tone: d.voice != null ? Tone.ok : Tone.neutral,
-        ),
-        onTap: () => _toggleRecording(s),
-      ),
-      _hint(),
+      _voice(),
       Tile(
         icon: Icons.fingerprint,
         title: d.needsHelp ? tr('Thumbprint on their slip') : tr('Photo of their signature or thumbprint on the slip'),
@@ -192,7 +145,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
             const SizedBox(height: 6),
           ],
           FilledButton(
-            onPressed: missing == null && !_recording && !_saving
+            onPressed: missing == null && !_saving
                 ? () async {
                     setState(() => _saving = true);
                     await finishCapture(context, d);
@@ -213,9 +166,11 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
             ],
           ),
         ),
-        if (d.phoneCheck)
+        if (d.phoneCheck && !d.workerCode)
           Note(tr('After Save, you can send a code to their phone from the server. They read it out to confirm.')),
-        if (d.evidenceNeeded) _proofGroup(s),
+        if (d.phoneCheck && d.workerCode) _workerCodeGroup(),
+        // With a worker-phone code the voice is asked for above, which also covers proof.
+        if (d.evidenceNeeded && !(d.phoneCheck && d.workerCode)) _proofGroup(s),
         if (d.witnessNeeded) ...[
           Text(
             tr('Witness (needed because the notice was read to them)'),

@@ -241,7 +241,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       onTap: () async {
                         if (!await _requireNotice(s) || !context.mounted) return;
                         final draft = CaptureDraft(programme: s.programme!, deviceId: s.deviceId)
-                          ..allowedMethods = s.allowedVerification;
+                          ..allowedMethods = s.allowedVerification
+                          ..codesFromWorkerPhone = s.workerPhoneCodes
+                          ..online = await s.online();
                         draft.lang = Strings.uiLang;
                         draft.notice = await s.notice(draft.lang);
                         if (!context.mounted) return;

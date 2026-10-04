@@ -75,11 +75,58 @@ void main() {
     d.settleVerification();
     expect(d.verifyMethod, 'server_otp');
     expect(d.verificationStatus, 'recorded');
-    d
-      ..online = false
-      ..settleVerification();
-    expect(d.verifyMethod, 'deferred');
     expect(d.captureMode, 'self_worker_device');
+  });
+
+  test("no internet, or a programme set to the worker's phone: the code goes from the worker's phone and "
+      'their voice "haan" is required with it', () {
+    for (final setUp in <void Function(CaptureDraft)>[(d) => d.online = false, (d) => d.codesFromWorkerPhone = true]) {
+      final d = draft()
+        ..noticeDone = true
+        ..attested = true;
+      setUp(d);
+      expect(d.workerCode, isTrue);
+      expect(d.missing, ['SMS code', 'voice']);
+      d.otpConfirmed = true;
+      expect(d.missing, ['voice'], reason: 'the worker saw the code, so the voice is required');
+      d.voice = EvidenceRef('v.m4a', 'audio', 'a' * 64);
+      expect(d.ready, isTrue);
+      d.settleVerification();
+      expect(d.verifyMethod, 'device_sms_otp');
+      expect(d.verificationStatus, 'recorded', reason: 'never confirmed on the worker phone');
+      final e = d.toPayload(DateTime(2026))['event'] as Map;
+      expect(e['verification_method'], 'device_sms_otp');
+      expect((d.toPayload(DateTime(2026))['evidence'] as List).single['kind'], 'audio');
+    }
+  });
+
+  test('the code cannot arrive now: confirm later by SMS, and the voice is still required', () {
+    final d = draft()
+      ..online = false
+      ..noticeDone = true
+      ..attested = true
+      ..verifyMethod = 'deferred';
+    expect(d.missing, ['voice']);
+    d.voice = EvidenceRef('v.m4a', 'audio', 'a' * 64);
+    d.settleVerification();
+    expect(d.verifyMethod, 'deferred');
+  });
+
+  test("a guardian on the worker's phone route also gives a voice haan with the code", () {
+    final d = draft()
+      ..who = 'child'
+      ..guardianName = 'Meena K. (fictional)'
+      ..guardianPhone = '9000033333'
+      ..online = false;
+    expect(d.guardianMissing, ['SMS code', 'voice']);
+    d
+      ..otpConfirmed = true
+      ..voice = EvidenceRef('v.m4a', 'audio', 'a' * 64);
+    expect(d.guardianMissing, isEmpty);
+    d.settleVerification();
+    final p = d.toPayload(DateTime(2026));
+    expect(((p['guardian'] as Map)['link'] as Map)['verification_method'], 'device_sms_otp');
+    expect((p['event'] as Map)['verification_method'], 'device_sms_otp');
   });
 
   test('reads, no phone: a voice "haan" or a signature/thumbprint photo, no witness', () {

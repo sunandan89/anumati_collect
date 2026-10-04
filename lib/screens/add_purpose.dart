@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../data/store.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
+import '../widgets/voice_haan.dart';
 
 /// Ask for one more purpose, later (spec A2, A4, v0.4): shows what the person
 /// already decided (not asked again), only the new purpose's part of the
@@ -27,6 +28,8 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   final Map<String, bool> _read = {};
   final Map<String, bool> _answer = {};
   bool _online = true;
+  bool _codeMatched = false;
+  EvidenceRef? _voice;
   bool _saving = false;
   final _witness = TextEditingController();
 
@@ -58,7 +61,15 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   }
 
   /// A phone gets a code from the server after Save (later by SMS when offline); no phone: evidence only.
-  String get _method => (_p?.phone ?? '').isEmpty ? 'evidence_only' : (_online ? 'server_otp' : 'deferred');
+  String get _method {
+    if ((_p?.phone ?? '').isEmpty) return 'evidence_only';
+    final s = context.read<AppState>();
+    // Server code (MSG91) when online, unless the programme always uses the worker's phone; a worker-phone
+    // code needs the person's voice "haan" with it.
+    return _online && !s.workerPhoneCodes && s.allowedVerification.contains('server_otp')
+        ? 'server_otp'
+        : 'device_sms_otp';
+  }
 
   List<NoticePurpose> get _new => [
     for (final pu in _notice?.purposes ?? const <NoticePurpose>[])
@@ -72,7 +83,8 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   bool get _ready =>
       _new.isNotEmpty &&
       _new.every((pu) => _answer.containsKey(pu.code)) &&
-      (!_p!.flag('read') || _witness.text.trim().isNotEmpty);
+      (!_p!.flag('read') || _witness.text.trim().isNotEmpty) &&
+      (_method != 'device_sms_otp' || (_codeMatched && _voice != null));
 
   Future<void> _save() async {
     final s = context.read<AppState>();
@@ -84,6 +96,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
       answers: Map.of(_answer),
       verifyMethod: method,
       witness: _p!.flag('read') ? _witness.text.trim() : null,
+      voice: method == 'device_sms_otp' ? _voice : null,
     );
     if (!mounted) return;
     await showDialog<void>(
@@ -118,6 +131,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
     final l = p.lang;
     final methodLabel = switch (_method) {
       'server_otp' => tr('Code from the server, after Save'),
+      'device_sms_otp' => tr('Code from your phone, with their voice “haan”'),
       'evidence_only' => tr('Evidence only'),
       _ => tr('Confirm later'),
     };
@@ -186,6 +200,15 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
             ),
         if (!guarded && _new.isNotEmpty) ...[
           Muted(tr('How this is confirmed: {0}.', [methodLabel])),
+          if (_method == 'device_sms_otp') ...[
+            OtpPanel(phone: p.phone!, lang: l, onConfirmed: () => setState(() => _codeMatched = true)),
+            VoiceHaanTile(
+              title: tr('Voice: their “haan”'),
+              value: _voice,
+              lang: l,
+              onSaved: (r) => setState(() => _voice = r),
+            ),
+          ],
           if (p.flag('read'))
             TextField(
               controller: _witness,

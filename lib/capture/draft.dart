@@ -113,7 +113,10 @@ class EvidenceRef {
 /// - a parent for a child, or a guardian for an adult who can't decide alone: a code the server texts to
 ///   the guardian's phone after Save, or a photo of their ID when they have no phone. No witness, voice
 ///   or thumbprint.
-/// Codes always come from the server, so the worker never sees them.
+/// Codes come from the server (MSG91), so the worker never sees them, when the programme uses MSG91 and the
+/// phone is online. Otherwise (programme set to "Worker's phone", or no internet) the code goes from the
+/// worker's own phone, and because the worker sees it, the voice "haan" of the person (or guardian) is
+/// required too.
 /// A guardian other than a parent, and every guardian of an adult, gives the order number.
 class CaptureDraft {
   CaptureDraft({required this.programme, required this.deviceId});
@@ -127,6 +130,19 @@ class CaptureDraft {
 
   /// Whether the phone was online at Save: then the server can text a code at once; else confirm later.
   bool online = true;
+
+  /// Programme setting "How SMS codes are sent" = Worker's phone (free, no internet needed).
+  bool codesFromWorkerPhone = false;
+
+  /// The code goes from the worker's own phone: by programme choice, offline, or when the programme
+  /// doesn't allow server codes.
+  bool get workerCode => codesFromWorkerPhone || !online || !allowedMethods.contains('server_otp');
+
+  /// There is a phone to send a code to: the person's own, or the guardian's.
+  bool get phoneToText => needsGuardian ? guardianPhone.trim().isNotEmpty : phoneCheck;
+
+  /// Worker-phone code still to do (the worker taps 'confirm later' when the code can't arrive now).
+  bool get _workerCodePending => !otpConfirmed && verifyMethod != 'deferred';
 
   String principalRef = '';
   String fullName = '';
@@ -229,6 +245,8 @@ class CaptureDraft {
     if (guardianName.trim().isEmpty) 'name',
     if (guardianPhone.isNotEmpty && !_validMobile(guardianPhone)) 'mobile number',
     if (guardianPhone.trim().isEmpty && guardianDoc == null) 'ID photo (no phone)',
+    if (guardianPhone.trim().isNotEmpty && workerCode && _workerCodePending) 'SMS code',
+    if (guardianPhone.trim().isNotEmpty && workerCode && voice == null) 'voice',
   ];
 
   static bool _validMobile(String digits) => digits.length == 10 || (digits.length == 12 && digits.startsWith('91'));
@@ -262,6 +280,8 @@ class CaptureDraft {
   List<String> get missing => [
     if (!noticeDone) 'notice',
     if (questions.any((q) => q.required && (profile[q.code] ?? '').trim().isEmpty)) 'answers',
+    if (!needsGuardian && phoneCheck && workerCode && _workerCodePending) 'SMS code',
+    if (!needsGuardian && phoneCheck && workerCode && voice == null) 'voice',
     if (evidenceNeeded && voice == null && thumb == null) 'proof',
     if (witnessNeeded && witness.trim().isEmpty) 'witness',
     if (!attested) 'tick',
@@ -281,19 +301,18 @@ class CaptureDraft {
   /// The method recorded with the consent, worked out from the journey just before saving. A phone to
   /// text is confirmed by a server-sent code after Save when online, else later by SMS (confirm later).
   void settleVerification() {
-    otpConfirmed = false;
-    final phoneToText = needsGuardian ? guardianPhone.trim().isNotEmpty : phoneCheck;
     if (!phoneToText) {
       verifyMethod = 'evidence_only';
-    } else if (online && allowedMethods.contains('server_otp')) {
+    } else if (!workerCode) {
       verifyMethod = 'server_otp';
-    } else {
-      verifyMethod = allowedMethods.contains('deferred') ? 'deferred' : 'server_otp';
+    } else if (verifyMethod != 'deferred') {
+      verifyMethod = 'device_sms_otp';
     }
   }
 
   String get verificationStatus => switch (verifyMethod) {
-    'device_sms_otp' => otpConfirmed ? 'confirmed' : 'recorded',
+    // The worker saw this code: never 'confirmed' (the server agrees).
+    'device_sms_otp' => 'recorded',
     'evidence_only' => 'evidence_only',
     _ => 'recorded',
   };
@@ -347,7 +366,9 @@ class CaptureDraft {
           if (guardianNeedsOrder && guardianAuthorityRef.trim().isNotEmpty)
             'authority_ref': guardianAuthorityRef.trim(),
           // Checked by the server-sent code after Save; an ID photo is the proof when there's no phone.
-          'verification_method': guardianPhone.trim().isEmpty ? 'document' : 'server_otp',
+          'verification_method': guardianPhone.trim().isEmpty
+              ? 'document'
+              : (workerCode ? 'device_sms_otp' : 'server_otp'),
         },
       },
     // The order photo first: it is the one attached to the guardian link.

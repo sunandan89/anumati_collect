@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_state.dart';
 import '../capture/draft.dart';
+import '../core/otp.dart';
 import '../core/strings.dart';
 import '../core/theme.dart';
 import '../data/store.dart';
@@ -143,6 +145,91 @@ class _ServerCodePanelState extends State<ServerCodePanel> {
           if (_note != null) Note(_note!, danger: _noteIsError),
         ],
       ),
+    );
+  }
+}
+
+/// Code from the worker's own phone (no internet needed, no SMS cost): opens the SMS app pre-filled to the
+/// number (the Play build never sends SMS silently), then checks the code read back. The worker sees this
+/// code, so it is always paired with the person's recorded voice "haan" and never counts as confirmed.
+class OtpPanel extends StatefulWidget {
+  const OtpPanel({super.key, required this.phone, required this.lang, required this.onConfirmed});
+  final String phone;
+  final String lang;
+  final VoidCallback onConfirmed;
+
+  @override
+  State<OtpPanel> createState() => _OtpPanelState();
+}
+
+class _OtpPanelState extends State<OtpPanel> {
+  DeviceOtp? _otp;
+  final _code = TextEditingController();
+  String? _error;
+  bool _done = false;
+
+  Future<void> _open() async {
+    final (otp, code) = DeviceOtp.generate();
+    setState(() {
+      _otp = otp;
+      _error = null;
+    });
+    final body = trFor(widget.lang, 'Your Anumati consent code is {0}. Read it back to the field worker.', [code]);
+    final uri = Uri(scheme: 'sms', path: widget.phone, queryParameters: {'body': body});
+    await launchUrl(uri);
+  }
+
+  void _check() {
+    final otp = _otp;
+    if (otp == null) return;
+    if (otp.verify(_code.text)) {
+      setState(() => _done = true);
+      widget.onConfirmed();
+    } else {
+      setState(() {
+        _error = otp.locked
+            ? tr('Too many wrong codes. Choose another method.')
+            : tr('That code does not match. Try again.');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_done) {
+      return Row(
+        children: [
+          const Icon(Icons.check_circle, color: AC.leaf),
+          const SizedBox(width: 8),
+          Text(tr('Code matched')),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _open,
+          icon: const Icon(Icons.sms_outlined),
+          label: Text(tr('Open SMS app with code')),
+        ),
+        if (_otp != null) ...[
+          const SizedBox(height: 10),
+          Muted(tr('Code they read back')),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _code,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, letterSpacing: 8),
+            onChanged: (v) {
+              if (v.length == 6) _check();
+            },
+          ),
+          if (_error != null) Note(_error!, danger: true),
+        ],
+      ],
     );
   }
 }

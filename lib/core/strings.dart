@@ -443,4 +443,18 @@ const Map<String, String> _hi = {
       'कोड सर्वर भेजता है, इस फ़ोन से नहीं। वे उसे पढ़कर आपको बताएँगे।',
   'The server did not accept this record. See Sync issues on Home.':
       'सर्वर ने यह रिकॉर्ड नहीं लिया। होम पर सिंक की समस्याएँ देखें।',
+  // code route: worker's phone plus voice
+  'Check their phone · both needed': 'उनका फ़ोन जाँचें · दोनों ज़रूरी',
+  'Code from your phone, with their voice “haan”': 'आपके फ़ोन से कोड, साथ में उनकी आवाज़ में “हाँ”',
+  'Confirm later: an SMS goes to {0} after sync.': 'बाद में पुष्टि: सिंक के बाद {0} पर SMS जाएगा।',
+  "No internet: the code goes from your phone. The guardian's voice “haan” is needed with it.":
+      'इंटरनेट नहीं है: कोड आपके फ़ोन से जाएगा। साथ में अभिभावक की आवाज़ में “हाँ” ज़रूरी है।',
+  'No internet: the code goes from your phone. Their voice “haan” is needed with it.':
+      'इंटरनेट नहीं है: कोड आपके फ़ोन से जाएगा। साथ में उनकी आवाज़ में “हाँ” ज़रूरी है।',
+  "This programme sends codes from your phone. The guardian's voice “haan” is needed with the code.":
+      'यह कार्यक्रम कोड आपके फ़ोन से भेजता है। कोड के साथ अभिभावक की आवाज़ में “हाँ” ज़रूरी है।',
+  'This programme sends codes from your phone. Their voice “haan” is needed with the code.':
+      'यह कार्यक्रम कोड आपके फ़ोन से भेजता है। कोड के साथ उनकी आवाज़ में “हाँ” ज़रूरी है।',
+  'Voice: the guardian’s “haan”': 'आवाज़: अभिभावक की “हाँ”',
+  'their voice “haan”': 'उनकी आवाज़ में “हाँ”',
 };

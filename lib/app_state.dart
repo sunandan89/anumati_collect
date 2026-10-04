@@ -343,6 +343,9 @@ class AppState extends ChangeNotifier {
   /// Whether the recording was made with Sarvam AI's voice, so the notice screen can credit it.
   Future<bool> audioByAi(String lang) async => await store!.get('audio_ai:$programme:$lang') == '1';
 
+  /// Programme setting "How SMS codes are sent": the worker's own phone instead of MSG91.
+  bool get workerPhoneCodes => programmeDoc?['sms_code_route'] == "Worker's phone";
+
   /// Verification methods this programme allows that work from the phone.
   List<String> get allowedVerification {
     const onPhone = ['server_otp', 'deferred', 'evidence_only'];
@@ -455,6 +458,7 @@ class AppState extends ChangeNotifier {
     required Map<String, bool> answers,
     required String verifyMethod,
     String? witness,
+    EvidenceRef? voice,
   }) async {
     final d = CaptureDraft(programme: programme!, deviceId: deviceId)
       ..principalRef = principal.ref
@@ -480,7 +484,7 @@ class AppState extends ChangeNotifier {
       shortCode: d.shortCode,
       payload: {
         'principal': {'principal_ref': principal.ref},
-        'evidence': [],
+        'evidence': [?voice?.toJson()],
         'event': {
           'event_uuid': d.eventUuid,
           'principal_ref': principal.ref,
