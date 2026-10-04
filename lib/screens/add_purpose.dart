@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../capture/ask_plan.dart';
 import '../capture/draft.dart';
 import '../core/strings.dart';
 import '../core/theme.dart';
@@ -73,16 +74,14 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
         : 'device_sms_otp';
   }
 
-  /// Asked before, now off: withdrawn or refused.
-  bool _wasOff(String code) => _decided[code] == 'withdrawn' || _decided[code] == 'refused';
+  AskPlan get _plan => AskPlan(
+    purposes: _notice?.purposes ?? const [],
+    decided: _decided,
+    minor: _p!.flag('minor'),
+    hasPhone: (_p!.phone ?? '').isNotEmpty,
+  );
 
-  List<NoticePurpose> get _new => [
-    for (final pu in _notice?.purposes ?? const <NoticePurpose>[])
-      if ((pu.essential ? _decided[pu.code] == 'withdrawn' : _decided[pu.code] != 'granted') &&
-          !(_p!.flag('minor') && !pu.childAllowed) &&
-          !(pu.needsPhone && (_p!.phone ?? '').isEmpty))
-        pu,
-  ];
+  List<NoticePurpose> get _new => _plan.toAsk;
 
   bool get _ready =>
       _new.isNotEmpty &&
@@ -156,7 +155,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
           ),
         ),
         Muted(tr('Already agreed — not asked again')),
-        for (final pu in n.purposes.where((pu) => _decided[pu.code] == 'granted'))
+        for (final pu in _plan.agreed)
           Row(
             children: [
               Expanded(child: Text(pu.title, style: const TextStyle(fontSize: 13))),
@@ -174,7 +173,11 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    '${trFor(l, pu.essential ? 'Rejoin the programme' : (_wasOff(pu.code) ? 'Ask again' : 'New use'))}: '
+                    '${trFor(l, switch (_plan.kinds[pu.code]) {
+                      AskKind.rejoin => 'Rejoin the programme',
+                      AskKind.askAgain => 'Ask again',
+                      _ => 'New use',
+                    })}: '
                     '${pu.title}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
