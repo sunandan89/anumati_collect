@@ -11,8 +11,10 @@ import '../widgets/common.dart';
 import '../widgets/voice_haan.dart';
 
 /// Ask for one more purpose, later (spec A2, A4, v0.4): shows what the person
-/// already decided (not asked again), only the new purpose's part of the
+/// already agreed to (not asked again), only the new purpose's part of the
 /// notice, equal-weight Yes/No, and the same verification method as before.
+/// A use they withdrew or refused can be asked again (they changed their mind),
+/// and someone who left the programme can rejoin it (its essential use).
 /// Someone who needs help reading also needs a witness, as at first consent.
 class AddPurposeScreen extends StatefulWidget {
   const AddPurposeScreen({super.key, required this.principalRef});
@@ -71,10 +73,12 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
         : 'device_sms_otp';
   }
 
+  /// Asked before, now off: withdrawn or refused.
+  bool _wasOff(String code) => _decided[code] == 'withdrawn' || _decided[code] == 'refused';
+
   List<NoticePurpose> get _new => [
     for (final pu in _notice?.purposes ?? const <NoticePurpose>[])
-      if (!pu.essential &&
-          !_decided.containsKey(pu.code) &&
+      if ((pu.essential ? _decided[pu.code] == 'withdrawn' : _decided[pu.code] != 'granted') &&
           !(_p!.flag('minor') && !pu.childAllowed) &&
           !(pu.needsPhone && (_p!.phone ?? '').isEmpty))
         pu,
@@ -151,8 +155,8 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
             ],
           ),
         ),
-        Muted(tr('Already decided — not asked again')),
-        for (final pu in n.purposes.where((pu) => _decided.containsKey(pu.code)))
+        Muted(tr('Already agreed — not asked again')),
+        for (final pu in n.purposes.where((pu) => _decided[pu.code] == 'granted'))
           Row(
             children: [
               Expanded(child: Text(pu.title, style: const TextStyle(fontSize: 13))),
@@ -161,7 +165,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
           ),
         const Divider(color: AC.terra),
         if (guarded) Note(tr('A guardian must consent for this person. Take a new consent with the guardian.')),
-        if (!guarded && _new.isEmpty) Note(tr('Nothing new to ask on this notice.')),
+        if (!guarded && _new.isEmpty) Note(tr('Nothing to ask: every use on this notice is already agreed.')),
         if (!guarded)
           for (final pu in _new)
             PCard(
@@ -169,7 +173,11 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('${trFor(l, 'New use')}: ${pu.title}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    '${trFor(l, pu.essential ? 'Rejoin the programme' : (_wasOff(pu.code) ? 'Ask again' : 'New use'))}: '
+                    '${pu.title}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   if (pu.description.isNotEmpty) Text(pu.description, style: const TextStyle(fontSize: 14)),
                   const SizedBox(height: 6),
                   Muted(tr('Read this part of the notice to them')),

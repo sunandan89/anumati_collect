@@ -253,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     const SizedBox(height: 10),
                     Tile(
                       icon: Icons.close,
-                      title: tr('Log withdrawal or request'),
+                      title: tr('Stop or change consent'),
                       subtitle: tr('Told in person, slip or letter'),
                       onTap: () async {
                         if (!await _requireNotice(s) || !context.mounted) return;

@@ -254,6 +254,46 @@ const Map<String, String> _hi = {
   'Withdrawal or request': 'वापसी या अनुरोध',
   'No optional use is on for this person, so there is nothing to stop.':
       'इस व्यक्ति के लिए कोई वैकल्पिक उपयोग चालू नहीं है, इसलिए रोकने को कुछ नहीं है।',
+  'Stop or change consent': 'सहमति रोकें या बदलें',
+  'Receipt code, name or ID': 'रसीद कोड, नाम या आईडी',
+  'They gave a paper slip or letter': 'उन्होंने पर्ची या पत्र दिया',
+  'Nothing is on for this person, so there is nothing to stop.':
+      'इस व्यक्ति के लिए कुछ भी चालू नहीं है, इसलिए रोकने को कुछ नहीं है।',
+  'Switch off what they no longer agree to': 'जिससे वे अब सहमत नहीं हैं, उसे बंद करें',
+  'Stop all': 'सब रोकें',
+  'Will stop': 'रुकेगा',
+  'On': 'चालू',
+  'Needed for the programme. To stop it, they leave the programme.':
+      'कार्यक्रम के लिए ज़रूरी। इसे रोकने के लिए उन्हें कार्यक्रम छोड़ना होगा।',
+  'Already off: {0}': 'पहले से बंद: {0}',
+  'Leave the programme': 'कार्यक्रम छोड़ें',
+  'Leave the programme?': 'कार्यक्रम छोड़ें?',
+  'This stops every use of their data in this programme, essential ones too. The programme stops serving them. Do they still want this?':
+      'इससे इस कार्यक्रम में उनके डेटा के सभी उपयोग रुक जाएँगे, ज़रूरी उपयोग भी। कार्यक्रम उन्हें सेवा देना बंद कर देगा। क्या वे फिर भी यही चाहते हैं?',
+  'Yes, leave': 'हाँ, छोड़ें',
+  'Other requests': 'अन्य अनुरोध',
+  'The office keeps only what the law needs and erases the rest. This may stop the programme\'s services to them.':
+      'दफ़्तर केवल वही रखेगा जो क़ानून के लिए ज़रूरी है और बाक़ी मिटा देगा। इससे कार्यक्रम की सेवाएँ उनके लिए रुक सकती हैं।',
+  'Save request': 'अनुरोध सेव करें',
+  'Stop 1 use for {0}': '{0} के लिए 1 उपयोग रोकें',
+  'Stop {0} uses for {1}': '{1} के लिए {0} उपयोग रोकें',
+  'Saved on this phone. It reaches the office inbox on sync.':
+      'इस फ़ोन पर सेव हुआ। सिंक पर यह दफ़्तर के इनबॉक्स में पहुँचेगा।',
+  'Withdrawal noted': 'वापसी दर्ज हुई',
+  'They have left the programme.': 'उन्होंने कार्यक्रम छोड़ दिया है।',
+  'Stopped: {0}': 'रोका गया: {0}',
+  'It takes effect on this phone now and reaches the office on sync.':
+      'यह इस फ़ोन पर अभी लागू है और सिंक पर दफ़्तर पहुँचेगा।',
+  'Send by SMS': 'SMS से भेजें',
+  'Anumati: you have left the programme. Your data will not be used.':
+      'अनुमति: आपने कार्यक्रम छोड़ दिया है। आपके डेटा का उपयोग नहीं होगा।',
+  'Anumati: you have stopped {0}. To agree again, tell any worker.':
+      'अनुमति: आपने {0} रोक दिया है। फिर से सहमति देने के लिए किसी भी कार्यकर्ता को बताएँ।',
+  'Already agreed — not asked again': 'पहले ही सहमत — दोबारा नहीं पूछा जाएगा',
+  'Ask again': 'फिर से पूछें',
+  'Rejoin the programme': 'कार्यक्रम में फिर से जुड़ें',
+  'Nothing to ask: every use on this notice is already agreed.':
+      'पूछने को कुछ नहीं: इस सूचना के सभी उपयोगों पर पहले से सहमति है।',
   'How did it reach you?': 'यह आप तक कैसे पहुँचा?',
   'In person': 'आमने-सामने',
   'Paper slip': 'काग़ज़ की पर्ची',

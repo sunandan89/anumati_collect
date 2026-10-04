@@ -389,6 +389,7 @@ class AppState extends ChangeNotifier {
     required String channel,
     List<String>? purposes,
     String? paperTrail,
+    bool leave = false,
   }) async {
     final eventUuid = const Uuid().v4();
     final now = DateTime.now();
@@ -406,6 +407,7 @@ class AppState extends ChangeNotifier {
           'event_uuid': eventUuid,
           'purposes': ?purposes,
           if (paperTrail != null && paperTrail.isNotEmpty) 'paper_trail_number': paperTrail,
+          if (leave) 'leave_programme': 1,
           'device_id': deviceId,
           'device_time': at,
         },
@@ -417,7 +419,8 @@ class AppState extends ChangeNotifier {
         purposes ??
         [
           for (final p in notice?.purposes ?? const <NoticePurpose>[])
-            if (!p.essential && decided[p.code] == 'granted') p.code,
+            // Leaving the programme stops essential uses too.
+            if ((leave || !p.essential) && decided[p.code] == 'granted') p.code,
         ];
     for (final c in targets) {
       await store!.decide(principalRef, programme!, c, 'withdrawn', at, eventUuid);
