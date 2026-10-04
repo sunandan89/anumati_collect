@@ -74,6 +74,9 @@ class Notice {
 
   /// Servers that serve extra questions also accept birth_year, programme and profile on principal.upsert.
   bool get supportsProfile => raw.containsKey('profile_questions');
+
+  /// The server can text codes now (SMS account and OTP template set up). Older servers don't say: assume so.
+  bool get serverCodes => raw['server_codes'] != false && raw['server_codes'] != 0;
   String get crossBorder => raw['cross_border_transfers'] as String? ?? '';
 
   List<NoticePurpose> get purposes {
@@ -134,9 +137,10 @@ class CaptureDraft {
   /// Programme setting "How SMS codes are sent" = Worker's phone (free, no internet needed).
   bool codesFromWorkerPhone = false;
 
-  /// The code goes from the worker's own phone: by programme choice, offline, or when the programme
-  /// doesn't allow server codes.
-  bool get workerCode => codesFromWorkerPhone || !online || !allowedMethods.contains('server_otp');
+  /// The code goes from the worker's own phone: by programme choice, offline, when the programme doesn't
+  /// allow server codes, or while the server can't send them (SMS not set up yet).
+  bool get workerCode =>
+      codesFromWorkerPhone || !online || !allowedMethods.contains('server_otp') || !(notice?.serverCodes ?? true);
 
   /// There is a phone to send a code to: the person's own, or the guardian's.
   bool get phoneToText => needsGuardian ? guardianPhone.trim().isNotEmpty : phoneCheck;

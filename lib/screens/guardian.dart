@@ -207,9 +207,13 @@ class _GuardianScreenState extends State<GuardianScreen> {
           Muted(tr('After Save, a code is sent to this number from the server. They read it out to confirm.')),
         if (d.guardianPhone.length >= 10 && d.workerCode) ...[
           Muted(
-            d.online
+            !d.online
+                ? tr("No internet: the code goes from your phone. The guardian's voice “haan” is needed with it.")
+                : d.codesFromWorkerPhone
                 ? tr("This programme sends codes from your phone. The guardian's voice “haan” is needed with the code.")
-                : tr("No internet: the code goes from your phone. The guardian's voice “haan” is needed with it."),
+                : tr(
+                    "SMS codes from the server are not set up yet: the code goes from your phone. The guardian's voice “haan” is needed with it.",
+                  ),
           ),
           if (d.verifyMethod == 'deferred')
             Muted(tr('Confirm later: an SMS goes to {0} after sync.', [d.guardianPhone]))

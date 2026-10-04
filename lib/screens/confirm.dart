@@ -75,9 +75,13 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     final codeDone = d.otpConfirmed || d.verifyMethod == 'deferred';
     return _group(tr('Check their phone · both needed'), codeDone && d.voice != null, [
       Muted(
-        d.online
+        !d.online
+            ? tr('No internet: the code goes from your phone. Their voice “haan” is needed with it.')
+            : d.codesFromWorkerPhone
             ? tr('This programme sends codes from your phone. Their voice “haan” is needed with the code.')
-            : tr('No internet: the code goes from your phone. Their voice “haan” is needed with it.'),
+            : tr(
+                'SMS codes from the server are not set up yet: the code goes from your phone. Their voice “haan” is needed with it.',
+              ),
       ),
       if (d.verifyMethod == 'deferred')
         Muted(tr('Confirm later: an SMS goes to {0} after sync.', [d.phone]))
