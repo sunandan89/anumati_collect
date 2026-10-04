@@ -554,7 +554,8 @@ class AppState extends ChangeNotifier {
       } else if (!quiet) {
         lastMessage = tr('Sync finished');
       }
-      if (r.synced > 0) unawaited(refreshReference());
+      // Fresh programme settings, notices and translations on every sync, not only after an upload.
+      if (r.stoppedBy == null) unawaited(refreshReference());
       if (r.stoppedBy == null) await pullPeople();
     } finally {
       syncing = false;

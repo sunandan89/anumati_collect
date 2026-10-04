@@ -66,7 +66,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
     final s = context.read<AppState>();
     // Server code (MSG91) when online, unless the programme always uses the worker's phone; a worker-phone
     // code needs the person's voice "haan" with it.
-    return _online && !s.workerPhoneCodes && s.allowedVerification.contains('server_otp')
+    return _online && !s.workerPhoneCodes && s.allowedVerification.contains('server_otp') && _notice!.serverCodes
         ? 'server_otp'
         : 'device_sms_otp';
   }
@@ -84,7 +84,9 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
       _new.isNotEmpty &&
       _new.every((pu) => _answer.containsKey(pu.code)) &&
       (!_p!.flag('read') || _witness.text.trim().isNotEmpty) &&
-      (_method != 'device_sms_otp' || (_codeMatched && _voice != null));
+      (_method != 'device_sms_otp' || (_codeMatched && _voice != null)) &&
+      // No phone: their voice "haan" is the proof (rule A1).
+      (_method != 'evidence_only' || _voice != null);
 
   Future<void> _save() async {
     final s = context.read<AppState>();
@@ -96,7 +98,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
       answers: Map.of(_answer),
       verifyMethod: method,
       witness: _p!.flag('read') ? _witness.text.trim() : null,
-      voice: method == 'device_sms_otp' ? _voice : null,
+      voice: method == 'server_otp' ? null : _voice,
     );
     if (!mounted) return;
     await showDialog<void>(
@@ -200,6 +202,13 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
             ),
         if (!guarded && _new.isNotEmpty) ...[
           Muted(tr('How this is confirmed: {0}.', [methodLabel])),
+          if (_method == 'evidence_only')
+            VoiceHaanTile(
+              title: tr('Voice: their “haan”'),
+              value: _voice,
+              lang: l,
+              onSaved: (r) => setState(() => _voice = r),
+            ),
           if (_method == 'device_sms_otp') ...[
             OtpPanel(phone: p.phone!, lang: l, onConfirmed: () => setState(() => _codeMatched = true)),
             VoiceHaanTile(

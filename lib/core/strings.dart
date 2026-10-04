@@ -457,4 +457,8 @@ const Map<String, String> _hi = {
       'यह कार्यक्रम कोड आपके फ़ोन से भेजता है। कोड के साथ उनकी आवाज़ में “हाँ” ज़रूरी है।',
   'Voice: the guardian’s “haan”': 'आवाज़: अभिभावक की “हाँ”',
   'their voice “haan”': 'उनकी आवाज़ में “हाँ”',
+  'SMS codes from the server are not set up yet: the code goes from your phone. Their voice “haan” is needed with it.':
+      'सर्वर से SMS कोड अभी चालू नहीं हैं: कोड आपके फ़ोन से जाएगा। साथ में उनकी आवाज़ में “हाँ” ज़रूरी है।',
+  "SMS codes from the server are not set up yet: the code goes from your phone. The guardian's voice “haan” is needed with it.":
+      'सर्वर से SMS कोड अभी चालू नहीं हैं: कोड आपके फ़ोन से जाएगा। साथ में अभिभावक की आवाज़ में “हाँ” ज़रूरी है।',
 };

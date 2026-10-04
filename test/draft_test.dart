@@ -100,6 +100,17 @@ void main() {
     }
   });
 
+  test("server codes not set up yet (no MSG91 key): the worker's phone and the voice are used even online", () {
+    final d = draft()
+      ..notice = Notice({'notice': 'N', 'purposes': [], 'server_codes': false})
+      ..noticeDone = true
+      ..attested = true;
+    expect(d.online, isTrue);
+    expect(d.workerCode, isTrue);
+    expect(d.missing, ['SMS code', 'voice']);
+    expect((draft()..notice = Notice({'notice': 'N', 'purposes': []})).workerCode, isFalse, reason: 'older server');
+  });
+
   test('the code cannot arrive now: confirm later by SMS, and the voice is still required', () {
     final d = draft()
       ..online = false
