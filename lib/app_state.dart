@@ -384,7 +384,12 @@ class AppState extends ChangeNotifier {
     await _afterWrite();
   }
 
-  Future<void> saveWithdrawal({required String principalRef, required String channel, List<String>? purposes}) async {
+  Future<void> saveWithdrawal({
+    required String principalRef,
+    required String channel,
+    List<String>? purposes,
+    String? paperTrail,
+  }) async {
     final eventUuid = const Uuid().v4();
     final now = DateTime.now();
     final at = CaptureDraft.deviceTime(now);
@@ -400,6 +405,7 @@ class AppState extends ChangeNotifier {
           'channel': channel,
           'event_uuid': eventUuid,
           'purposes': ?purposes,
+          if (paperTrail != null && paperTrail.isNotEmpty) 'paper_trail_number': paperTrail,
           'device_id': deviceId,
           'device_time': at,
         },
@@ -425,6 +431,7 @@ class AppState extends ChangeNotifier {
     String? principalRef,
     String? note,
     String? paperTrail,
+    String? consentCode,
   }) async {
     await store!.enqueue(
       kind: 'request',
@@ -437,6 +444,7 @@ class AppState extends ChangeNotifier {
           'principal_ref': ?principalRef,
           if (note != null && note.isNotEmpty) 'payload': note,
           if (paperTrail != null && paperTrail.isNotEmpty) 'paper_trail_number': paperTrail,
+          'consent_code': ?consentCode,
         },
       },
     );

@@ -333,6 +333,9 @@ void main() {
       ],
     });
     expect((await store.search('gauri')).single.lastCode, 'AN-QWERTY');
+    // A slip brought to a worker who did not take the consent still finds her by its code.
+    expect((await store.search('qwerty')).single.ref, 'MHU-7');
+    expect((await store.search('AN-QWERTY')).single.ref, 'MHU-7');
     final d = await store.decisions('MHU-7', 'MHU');
     expect(d['screen'], 'granted');
     expect(d['follow'], 'withdrawn', reason: 'the newer withdrawal on the phone wins');

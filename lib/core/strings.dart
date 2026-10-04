@@ -252,6 +252,8 @@ const Map<String, String> _hi = {
   // withdraw
   'Log what they asked for': 'उन्होंने क्या माँगा, दर्ज करें',
   'Withdrawal or request': 'वापसी या अनुरोध',
+  'No optional use is on for this person, so there is nothing to stop.':
+      'इस व्यक्ति के लिए कोई वैकल्पिक उपयोग चालू नहीं है, इसलिए रोकने को कुछ नहीं है।',
   'How did it reach you?': 'यह आप तक कैसे पहुँचा?',
   'In person': 'आमने-सामने',
   'Paper slip': 'काग़ज़ की पर्ची',
