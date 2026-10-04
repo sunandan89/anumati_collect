@@ -30,10 +30,14 @@ class Store {
     final db = await openDatabase(
       p.join(dir.path, _dbName),
       password: dbKey,
-      version: 2,
+      version: 3,
       onCreate: (db, _) => createSchema(db),
       onUpgrade: (db, from, to) async {
         if (from < 2) await db.execute("ALTER TABLE principals ADD COLUMN source TEXT DEFAULT 'phone'");
+        if (from < 3) {
+          await db.execute('ALTER TABLE principals ADD COLUMN guardian_phone TEXT');
+          await db.execute('ALTER TABLE principals ADD COLUMN guardian_relation TEXT');
+        }
       },
     );
     final evDir = Directory(p.join(dir.path, 'evidence'));
@@ -64,7 +68,8 @@ class Store {
     await db.execute('CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT)');
     await db.execute('''CREATE TABLE principals (
       ref TEXT PRIMARY KEY, programme TEXT, full_name TEXT, phone TEXT, lang TEXT,
-      flags TEXT, last_code TEXT, verification_method TEXT, created_at TEXT, source TEXT DEFAULT 'phone')''');
+      flags TEXT, last_code TEXT, verification_method TEXT, created_at TEXT, source TEXT DEFAULT 'phone',
+      guardian_phone TEXT, guardian_relation TEXT)''');
     await db.execute('''CREATE TABLE outbox (
       id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, event_uuid TEXT UNIQUE,
       principal_ref TEXT, programme TEXT, payload TEXT NOT NULL, progress TEXT,
@@ -117,6 +122,12 @@ class Store {
         'nophone': b('no_phone'),
       }),
       'last_code': p['last_code'] ?? existing?.lastCode,
+      'guardian_phone': (p['guardian_phone'] as String?)?.isNotEmpty == true
+          ? p['guardian_phone']
+          : existing?.guardianPhone,
+      'guardian_relation': (p['guardian_relation'] as String?)?.isNotEmpty == true
+          ? p['guardian_relation']
+          : existing?.guardianRelation,
       'verification_method': existing?.verificationMethod,
       'created_at': existing?.createdAt ?? DateTime.now().toIso8601String(),
       'source': existing == null ? 'server' : 'phone',
@@ -132,17 +143,23 @@ class Store {
     return rows.isEmpty ? null : LocalPrincipal.fromRow(rows.first);
   }
 
-  /// Offline search over people on this phone (captured here or downloaded): name, ID or receipt code.
+  /// Offline search over people on this phone (captured here or downloaded): name, ID, receipt code, or
+  /// phone number (their own or their guardian's, so one family phone finds the parent and the children).
   Future<List<LocalPrincipal>> search(String q, {String? programme}) async {
     final like = '%${q.trim()}%';
     final code = q.trim().toUpperCase();
+    final digits = phoneDigits(q);
+    // At least 4 digits, and nothing but a phone number was typed (spaces, + or - allowed).
+    final byPhone = digits.length >= 4 && RegExp(r'^[\d\s+\-]+$').hasMatch(q.trim()) ? '%$digits%' : null;
     final rows = await db.rawQuery(
       '''SELECT DISTINCT p.* FROM principals p
          LEFT JOIN outbox o ON o.principal_ref = p.ref
          WHERE (? IS NULL OR p.programme = ?)
-           AND (p.full_name LIKE ? OR p.ref LIKE ? OR o.short_code IN (?, ?) OR p.last_code IN (?, ?))
+           AND (p.full_name LIKE ? OR p.ref LIKE ? OR o.short_code IN (?, ?) OR p.last_code IN (?, ?)
+                OR (? IS NOT NULL AND (REPLACE(REPLACE(p.phone, ' ', ''), '-', '') LIKE ?
+                                       OR REPLACE(REPLACE(p.guardian_phone, ' ', ''), '-', '') LIKE ?)))
          ORDER BY p.created_at DESC LIMIT 50''',
-      [programme, programme, like, like, code, 'AN-$code', code, 'AN-$code'],
+      [programme, programme, like, like, code, 'AN-$code', code, 'AN-$code', byPhone, byPhone, byPhone],
     );
     return rows.map(LocalPrincipal.fromRow).toList();
   }
@@ -249,6 +266,13 @@ class Store {
   }
 }
 
+/// The digits of a phone number as typed, without a country code or leading 0: an Indian mobile number is
+/// its last 10 digits ("+91 98765-43210" and "098765 43210" -> "9876543210").
+String phoneDigits(String s) {
+  final d = s.replaceAll(RegExp(r'\D'), '');
+  return d.length > 10 ? d.substring(d.length - 10) : d;
+}
+
 class LocalPrincipal {
   LocalPrincipal({
     required this.ref,
@@ -259,6 +283,8 @@ class LocalPrincipal {
     this.flags = const {},
     this.lastCode,
     this.verificationMethod,
+    this.guardianPhone,
+    this.guardianRelation,
     String? createdAt,
   }) : createdAt = createdAt ?? DateTime.now().toIso8601String();
 
@@ -270,9 +296,22 @@ class LocalPrincipal {
   final Map<String, bool> flags;
   final String? lastCode;
   final String? verificationMethod;
+
+  /// The latest parent's or guardian's number and relation (Mother, Father, …), for finding by phone.
+  final String? guardianPhone;
+  final String? guardianRelation;
   final String createdAt;
 
   bool flag(String k) => flags[k] ?? false;
+
+  /// How a typed phone number matched: 'own', 'guardian', or null (not a phone search, or no match).
+  String? phoneMatch(String query) {
+    final d = phoneDigits(query);
+    if (d.length < 4) return null;
+    if (phoneDigits(phone ?? '').contains(d)) return 'own';
+    if (phoneDigits(guardianPhone ?? '').contains(d)) return 'guardian';
+    return null;
+  }
 
   Map<String, Object?> toRow() => {
     'ref': ref,
@@ -283,6 +322,8 @@ class LocalPrincipal {
     'flags': jsonEncode(flags),
     'last_code': lastCode,
     'verification_method': verificationMethod,
+    'guardian_phone': guardianPhone,
+    'guardian_relation': guardianRelation,
     'created_at': createdAt,
   };
 
@@ -295,6 +336,8 @@ class LocalPrincipal {
     flags: Map<String, bool>.from(jsonDecode(r['flags'] as String? ?? '{}') as Map),
     lastCode: r['last_code'] as String?,
     verificationMethod: r['verification_method'] as String?,
+    guardianPhone: r['guardian_phone'] as String?,
+    guardianRelation: r['guardian_relation'] as String?,
     createdAt: r['created_at'] as String?,
   );
 
@@ -307,6 +350,8 @@ class LocalPrincipal {
     flags: flags,
     lastCode: lastCode ?? this.lastCode,
     verificationMethod: verificationMethod ?? this.verificationMethod,
+    guardianPhone: guardianPhone,
+    guardianRelation: guardianRelation,
     createdAt: createdAt,
   );
 }

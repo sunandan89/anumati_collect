@@ -247,7 +247,10 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
           controller: _query,
           textCapitalization: TextCapitalization.characters,
           onChanged: (_) => _search(),
-          decoration: InputDecoration(labelText: tr('Receipt code, name or ID'), prefixIcon: const Icon(Icons.search)),
+          decoration: InputDecoration(
+            labelText: tr('Receipt code, name, ID or phone'),
+            prefixIcon: const Icon(Icons.search),
+          ),
         ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
@@ -274,6 +277,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                       children: [
                         Text(m.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
                         Muted('${m.ref}${m.lastCode != null ? ' · ${m.lastCode}' : ''}'),
+                        if (phoneMatchLabel(m, _query.text) case final label?) Muted(label),
                       ],
                     ),
                   ),
@@ -290,6 +294,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               children: [
                 Text(who.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
                 Muted([who.ref, ?who.lastCode].join(' · ')),
+                if (phoneMatchLabel(who, _query.text) case final label?) Muted(label),
               ],
             ),
           ),

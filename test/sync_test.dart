@@ -309,6 +309,33 @@ void main() {
     expect(await store.search('nobody'), isEmpty);
   });
 
+  test('find by phone: their own number or their guardian\'s, so one family phone finds everyone', () async {
+    await store.savePrincipal(
+      LocalPrincipal(ref: 'MHU-20', programme: 'MHU', fullName: 'Radha S. (fictional)', phone: '5550001234'),
+    );
+    await store.saveServerPrincipal('MHU', {
+      'principal_ref': 'MHU-21',
+      'full_name': 'Meena S. (fictional)',
+      'is_minor': 1,
+      'guardian_phone': '555 000-1234',
+      'guardian_relation': 'Mother',
+      'decisions': [],
+    });
+    await store.savePrincipal(
+      LocalPrincipal(ref: 'MHU-22', programme: 'MHU', fullName: 'Someone else (fictional)', phone: '5550009876'),
+    );
+    final family = await store.search('5550001234');
+    expect(family.map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'});
+    expect(family.firstWhere((p) => p.ref == 'MHU-20').phoneMatch('5550001234'), 'own');
+    final child = family.firstWhere((p) => p.ref == 'MHU-21');
+    expect(child.phoneMatch('5550001234'), 'guardian');
+    expect(child.guardianRelation, 'Mother');
+    expect((await store.search('+91 55500 01234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: '+91');
+    expect((await store.search('1234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'last digits');
+    expect(await store.search('123'), isEmpty, reason: 'fewer than 4 digits is not a phone search');
+    expect((await store.search('radha')).single.ref, 'MHU-20', reason: 'name search unchanged');
+  });
+
   test('server errors map to park, retry later or sign in again', () {
     expect(SdkServer.classify(ValidationException('Unknown purpose')).kind, Failure.rejected);
     expect(SdkServer.classify(AuthException('expired', 401)).kind, Failure.auth);

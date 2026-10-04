@@ -51,7 +51,7 @@ class _FindScreenState extends State<FindScreen> {
           autofocus: true,
           onChanged: _load,
           decoration: InputDecoration(
-            labelText: tr('Search by name, ID or code'),
+            labelText: tr('Search by name, ID, code or phone'),
             prefixIcon: const Icon(Icons.search),
           ),
         ),
@@ -66,6 +66,7 @@ class _FindScreenState extends State<FindScreen> {
               children: [
                 Text(r.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
                 Muted([r.ref, ?r.lastCode, Strings.languages[r.lang] ?? r.lang].join(' · ')),
+                if (phoneMatchLabel(r, _q.text) case final m?) Muted(m),
                 const SizedBox(height: 6),
                 for (final p in _purposes)
                   Padding(

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../core/strings.dart';
 import '../core/theme.dart';
+import '../data/store.dart';
 
 /// The green app bar from the prototype: small subtitle, title, sync chip.
 class StepBar extends StatelessWidget implements PreferredSizeWidget {
@@ -338,3 +339,11 @@ void toast(BuildContext context, String message) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
 }
+
+/// "Their number" or "Guardian's number (Mother)" when a phone search found this person; null otherwise.
+String? phoneMatchLabel(LocalPrincipal p, String query) => switch (p.phoneMatch(query)) {
+  'own' => tr('Their number'),
+  'guardian' =>
+    (p.guardianRelation ?? '').isEmpty ? tr("Guardian's number") : tr("Guardian's number ({0})", [p.guardianRelation!]),
+  _ => null,
+};

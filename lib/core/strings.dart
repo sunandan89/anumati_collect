@@ -255,7 +255,11 @@ const Map<String, String> _hi = {
   'No optional use is on for this person, so there is nothing to stop.':
       'इस व्यक्ति के लिए कोई वैकल्पिक उपयोग चालू नहीं है, इसलिए रोकने को कुछ नहीं है।',
   'Stop or change consent': 'सहमति रोकें या बदलें',
-  'Receipt code, name or ID': 'रसीद कोड, नाम या आईडी',
+  'Receipt code, name, ID or phone': 'रसीद कोड, नाम, आईडी या फ़ोन',
+  'Search by name, ID, code or phone': 'नाम, आईडी, कोड या फ़ोन से खोजें',
+  'Their number': 'उनका नंबर',
+  "Guardian's number": 'अभिभावक का नंबर',
+  "Guardian's number ({0})": 'अभिभावक का नंबर ({0})',
   'They gave a paper slip or letter': 'उन्होंने पर्ची या पत्र दिया',
   'Nothing is on for this person, so there is nothing to stop.':
       'इस व्यक्ति के लिए कुछ भी चालू नहीं है, इसलिए रोकने को कुछ नहीं है।',

@@ -411,5 +411,7 @@ class CaptureDraft {
     flags: Map.of(flags),
     lastCode: shortCode,
     verificationMethod: verifyMethod,
+    guardianPhone: needsGuardian && guardianPhone.trim().isNotEmpty ? guardianPhone.trim() : null,
+    guardianRelation: needsGuardian && _linkRelation.isNotEmpty ? _linkRelation : null,
   );
 }
