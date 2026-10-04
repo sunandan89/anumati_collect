@@ -24,6 +24,13 @@ abstract class Server {
   /// No personal data. Older servers don't have it; then nothing happens.
   Future<void> guardianNeeded(String programme);
 
+  /// Server-sent code (the worker never sees it): texts a code to the person's phone, or their guardian's.
+  /// Returns {sent, to?, reason?}.
+  Future<Map<String, dynamic>> sendCode(String consentId);
+
+  /// Checks the code the person reads back. Returns {confirmed, tries_left?}.
+  Future<Map<String, dynamic>> checkCode(String consentId, String code);
+
   /// People in a programme for the phone's offline store; null if the server is too old to serve them.
   Future<Map<String, dynamic>?> peopleForDevice(String programme, String? since);
 
@@ -241,4 +248,13 @@ class SdkServer implements Server {
   @override
   Future<void> guardianNeeded(String programme) =>
       _optional('anumati.api.v1.notifications.guardian_needed', {'programme': programme});
+
+  @override
+  Future<Map<String, dynamic>> sendCode(String consentId) async =>
+      Map<String, dynamic>.from(await _call('anumati.api.v1.verification.send_otp', {'consent_id': consentId}) as Map);
+
+  @override
+  Future<Map<String, dynamic>> checkCode(String consentId, String code) async => Map<String, dynamic>.from(
+    await _call('anumati.api.v1.verification.verify_otp', {'consent_id': consentId, 'code': code}) as Map,
+  );
 }

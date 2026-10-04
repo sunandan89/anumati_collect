@@ -191,6 +191,12 @@ class Store {
     whereArgs: [id],
   );
 
+  /// pending, synced or failed; null if this phone has no such record.
+  Future<String?> statusOf(String eventUuid) async {
+    final rows = await db.query('outbox', columns: ['status'], where: 'event_uuid = ?', whereArgs: [eventUuid]);
+    return rows.isEmpty ? null : rows.first['status'] as String?;
+  }
+
   Future<void> markFailed(int id, String error) =>
       db.rawUpdate("UPDATE outbox SET status = 'failed', error = ?, attempts = attempts + 1 WHERE id = ?", [error, id]);
 

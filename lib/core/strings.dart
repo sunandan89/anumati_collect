@@ -419,4 +419,42 @@ const Map<String, String> _hi = {
   'Brother / sister': 'भाई / बहन',
   'Spouse': 'पति / पत्नी',
   'Other': 'अन्य',
+  // server-sent codes
+  'After Save, a code is sent to this number from the server. They read it out to confirm.':
+      'सेव करने के बाद सर्वर इस नंबर पर एक कोड भेजेगा। पुष्टि के लिए वे उसे पढ़कर बताएँगे।',
+  'After Save, you can send a code to their phone from the server. They read it out to confirm.':
+      'सेव करने के बाद आप सर्वर से उनके फ़ोन पर कोड भिजवा सकते हैं। पुष्टि के लिए वे उसे पढ़कर बताएँगे।',
+  'Code from the server (below)': 'सर्वर से भेजा कोड (नीचे)',
+  'Code from the server, after Save': 'सेव के बाद सर्वर से भेजा कोड',
+  'Code matched · consent confirmed': 'कोड मिल गया · सहमति की पुष्टि हुई',
+  'Code sent to {0}. Ask them to read it out.': '{0} पर कोड भेजा गया। उनसे पढ़कर बताने को कहें।',
+  "Confirm with a code to the guardian's phone": 'अभिभावक के फ़ोन पर कोड से पुष्टि करें',
+  'Confirm with a code to their phone': 'उनके फ़ोन पर कोड से पुष्टि करें',
+  'Could not send the code. Try again in a minute.': 'कोड नहीं भेजा जा सका। एक मिनट बाद फिर कोशिश करें।',
+  'How this is confirmed: {0}.': 'पुष्टि कैसे होगी: {0}।',
+  'No internet now. The consent is saved and will be confirmed later.':
+      'अभी इंटरनेट नहीं है। सहमति सेव है और बाद में पुष्टि होगी।',
+  'SMS codes are not set up yet. The consent is saved and will be confirmed later.':
+      'SMS कोड अभी चालू नहीं हैं। सहमति सेव है और बाद में पुष्टि होगी।',
+  'Send a new code': 'नया कोड भेजें',
+  'Send code': 'कोड भेजें',
+  'That code does not match. {0} tries left.': 'कोड मेल नहीं खाता। {0} कोशिशें बाकी।',
+  'The code is sent by the server, not from this phone. They read it out to you.':
+      'कोड सर्वर भेजता है, इस फ़ोन से नहीं। वे उसे पढ़कर आपको बताएँगे।',
+  'The server did not accept this record. See Sync issues on Home.':
+      'सर्वर ने यह रिकॉर्ड नहीं लिया। होम पर सिंक की समस्याएँ देखें।',
+  // code route: worker's phone plus voice
+  'Check their phone · both needed': 'उनका फ़ोन जाँचें · दोनों ज़रूरी',
+  'Code from your phone, with their voice “haan”': 'आपके फ़ोन से कोड, साथ में उनकी आवाज़ में “हाँ”',
+  'Confirm later: an SMS goes to {0} after sync.': 'बाद में पुष्टि: सिंक के बाद {0} पर SMS जाएगा।',
+  "No internet: the code goes from your phone. The guardian's voice “haan” is needed with it.":
+      'इंटरनेट नहीं है: कोड आपके फ़ोन से जाएगा। साथ में अभिभावक की आवाज़ में “हाँ” ज़रूरी है।',
+  'No internet: the code goes from your phone. Their voice “haan” is needed with it.':
+      'इंटरनेट नहीं है: कोड आपके फ़ोन से जाएगा। साथ में उनकी आवाज़ में “हाँ” ज़रूरी है।',
+  "This programme sends codes from your phone. The guardian's voice “haan” is needed with the code.":
+      'यह कार्यक्रम कोड आपके फ़ोन से भेजता है। कोड के साथ अभिभावक की आवाज़ में “हाँ” ज़रूरी है।',
+  'This programme sends codes from your phone. Their voice “haan” is needed with the code.':
+      'यह कार्यक्रम कोड आपके फ़ोन से भेजता है। कोड के साथ उनकी आवाज़ में “हाँ” ज़रूरी है।',
+  'Voice: the guardian’s “haan”': 'आवाज़: अभिभावक की “हाँ”',
+  'their voice “haan”': 'उनकी आवाज़ में “हाँ”',
 };

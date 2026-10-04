@@ -27,6 +27,7 @@ bool isLastStep(CaptureDraft d, String step) => flowSteps(d).last == step;
 
 /// Save the consent to the phone's outbox and show the receipt.
 Future<void> finishCapture(BuildContext context, CaptureDraft d) async {
+  // The route (server code or worker's phone) was fixed when the screens opened; don't switch at Save.
   d.settleVerification();
   await context.read<AppState>().saveConsent(d);
   if (!context.mounted) return;
@@ -58,10 +59,11 @@ String? missingText(List<String> missing) {
   final words = {
     'notice': tr('play the whole notice'),
     'answers': tr('answer the required questions'),
-    'SMS code': tr('the SMS code'),
     'proof': tr('a voice “haan” or a photo'),
     'witness': tr("the witness's name"),
     'tick': tr('tick the declaration'),
+    'SMS code': tr('the SMS code'),
+    'voice': tr('their voice “haan”'),
     'relation': tr('the relation'),
     'order number': tr('the order number'),
     'name': tr('the name'),

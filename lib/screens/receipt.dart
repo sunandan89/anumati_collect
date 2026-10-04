@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../capture/draft.dart';
 import '../core/strings.dart';
 import '../core/theme.dart';
+import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
 
 /// M7 Receipt (spec B1, B4): the consent code to write on her slip, what was
@@ -24,6 +25,7 @@ class ReceiptScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = draft;
     final verifiedBy = switch (d.verifyMethod) {
+      'server_otp' => tr('Code from the server (below)'),
       'device_sms_otp' => tr('Device SMS code'),
       'deferred' => tr('Confirm later (SMS after sync)'),
       _ => tr('Evidence only'),
@@ -82,6 +84,7 @@ class ReceiptScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (d.verifyMethod == 'server_otp') ServerCodePanel(eventUuid: d.eventUuid, forGuardian: d.needsGuardian),
           PCard(child: Text(tr('Tell them: SMS STOP with this code, a missed call, or tell any worker to withdraw.'))),
           if (_to(d).isNotEmpty)
             OutlinedButton.icon(

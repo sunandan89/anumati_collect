@@ -8,9 +8,11 @@ import '../core/strings.dart';
 import '../core/theme.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
+import '../widgets/voice_haan.dart';
 
-/// Step 2 for a parent or guardian (spec C1, C2; design A2-A4). The guardian is verified here by an SMS
-/// code to their phone; a photo of their ID is optional, and needed only when they have no phone.
+/// Step 2 for a parent or guardian (spec C1, C2; design A2-A4). The guardian is verified after Save by a
+/// code the server texts to their phone; a photo of their ID is optional, and needed only when they have
+/// no phone.
 /// A guardian other than a parent, and every guardian of an adult who can't decide alone, gives the
 /// number of the order that appointed them. With no order yet, consent can't be taken: nothing is saved
 /// and the coordinator is told, without the person's details.
@@ -27,6 +29,15 @@ class _GuardianScreenState extends State<GuardianScreen> {
   late final _phone = TextEditingController(text: d.guardianPhone);
   late final _order = TextEditingController(text: d.guardianAuthorityRef);
   bool _telling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Server code (MSG91) when online, unless the programme always uses the worker's phone.
+    context.read<AppState>().online().then((v) {
+      if (mounted) setState(() => d.online = v);
+    });
+  }
 
   bool get _child => d.flags['minor']!;
 
@@ -45,7 +56,7 @@ class _GuardianScreenState extends State<GuardianScreen> {
     final digits = _phone.text.replaceAll(RegExp(r'\D'), '');
     if (digits != d.guardianPhone) {
       d.guardianPhone = digits;
-      d.guardianVerified = false; // a new number needs a new code
+      d.otpConfirmed = false; // a new number needs a new code
     }
   }
 
@@ -192,13 +203,37 @@ class _GuardianScreenState extends State<GuardianScreen> {
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(labelText: parent ? tr("Parent's mobile") : tr("Guardian's mobile")),
         ),
-        if (d.guardianPhone.length >= 10) ...[
-          Muted(parent ? tr('Verify the parent') : tr('Verify the guardian')),
-          OtpPanel(
-            key: ValueKey(d.guardianPhone),
-            phone: d.guardianPhone,
+        if (d.guardianPhone.length >= 10 && !d.workerCode)
+          Muted(tr('After Save, a code is sent to this number from the server. They read it out to confirm.')),
+        if (d.guardianPhone.length >= 10 && d.workerCode) ...[
+          Muted(
+            d.online
+                ? tr("This programme sends codes from your phone. The guardian's voice “haan” is needed with the code.")
+                : tr("No internet: the code goes from your phone. The guardian's voice “haan” is needed with it."),
+          ),
+          if (d.verifyMethod == 'deferred')
+            Muted(tr('Confirm later: an SMS goes to {0} after sync.', [d.guardianPhone]))
+          else ...[
+            OtpPanel(
+              key: ValueKey(d.guardianPhone),
+              phone: d.guardianPhone,
+              lang: d.lang,
+              onConfirmed: () => setState(() {
+                d.verifyMethod = 'device_sms_otp';
+                d.otpConfirmed = true;
+              }),
+            ),
+            if (d.allowedMethods.contains('deferred') && !d.otpConfirmed)
+              TextButton(
+                onPressed: () => setState(() => d.verifyMethod = 'deferred'),
+                child: Text(tr("Can't get the code now? Confirm later by SMS")),
+              ),
+          ],
+          VoiceHaanTile(
+            title: tr('Voice: the guardian’s “haan”'),
+            value: d.voice,
             lang: d.lang,
-            onConfirmed: () => setState(() => d.guardianVerified = true),
+            onSaved: (r) => setState(() => d.voice = r),
           ),
         ],
         _photo(

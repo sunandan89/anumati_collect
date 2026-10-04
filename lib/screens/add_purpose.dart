@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../data/store.dart';
 import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
+import '../widgets/voice_haan.dart';
 
 /// Ask for one more purpose, later (spec A2, A4, v0.4): shows what the person
 /// already decided (not asked again), only the new purpose's part of the
@@ -26,7 +27,9 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   Map<String, String> _decided = {};
   final Map<String, bool> _read = {};
   final Map<String, bool> _answer = {};
-  bool _confirmed = false;
+  bool _online = true;
+  bool _codeMatched = false;
+  EvidenceRef? _voice;
   bool _saving = false;
   final _witness = TextEditingController();
 
@@ -48,14 +51,25 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
     if (p == null) return;
     final n = await s.notice(p.lang);
     final decided = await s.store!.decisions(p.ref, s.programme!);
+    final online = await s.online();
     setState(() {
       _p = p;
       _notice = n;
       _decided = decided;
+      _online = online;
     });
   }
 
-  String get _method => _p?.verificationMethod ?? ((_p?.phone ?? '').isEmpty ? 'evidence_only' : 'device_sms_otp');
+  /// A phone gets a code from the server after Save (later by SMS when offline); no phone: evidence only.
+  String get _method {
+    if ((_p?.phone ?? '').isEmpty) return 'evidence_only';
+    final s = context.read<AppState>();
+    // Server code (MSG91) when online, unless the programme always uses the worker's phone; a worker-phone
+    // code needs the person's voice "haan" with it.
+    return _online && !s.workerPhoneCodes && s.allowedVerification.contains('server_otp')
+        ? 'server_otp'
+        : 'device_sms_otp';
+  }
 
   List<NoticePurpose> get _new => [
     for (final pu in _notice?.purposes ?? const <NoticePurpose>[])
@@ -69,32 +83,39 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   bool get _ready =>
       _new.isNotEmpty &&
       _new.every((pu) => _answer.containsKey(pu.code)) &&
-      (_method != 'device_sms_otp' || _confirmed) &&
-      (!_p!.flag('read') || _witness.text.trim().isNotEmpty);
+      (!_p!.flag('read') || _witness.text.trim().isNotEmpty) &&
+      (_method != 'device_sms_otp' || (_codeMatched && _voice != null));
 
   Future<void> _save() async {
     final s = context.read<AppState>();
     setState(() => _saving = true);
-    final code = await s.saveAddedPurposes(
+    final method = _method;
+    final saved = await s.saveAddedPurposes(
       principal: _p!,
       notice: _notice!,
       answers: Map.of(_answer),
-      verifyMethod: _method,
-      confirmed: _confirmed,
+      verifyMethod: method,
       witness: _p!.flag('read') ? _witness.text.trim() : null,
+      voice: method == 'device_sms_otp' ? _voice : null,
     );
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('Saved on this phone')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Muted(tr('Consent code — write it on their slip')),
-            const SizedBox(height: 8),
-            SelectableText(code, style: const TextStyle(fontSize: 28, letterSpacing: 2, fontFamily: 'monospace')),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Muted(tr('Consent code — write it on their slip')),
+              const SizedBox(height: 8),
+              SelectableText(
+                saved.code,
+                style: const TextStyle(fontSize: 28, letterSpacing: 2, fontFamily: 'monospace'),
+              ),
+              if (method == 'server_otp') ...[const SizedBox(height: 12), ServerCodePanel(eventUuid: saved.eventUuid)],
+            ],
+          ),
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
       ),
@@ -109,7 +130,8 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
     if (p == null || n == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final l = p.lang;
     final methodLabel = switch (_method) {
-      'device_sms_otp' => tr('SMS code from this phone'),
+      'server_otp' => tr('Code from the server, after Save'),
+      'device_sms_otp' => tr('Code from your phone, with their voice “haan”'),
       'evidence_only' => tr('Evidence only'),
       _ => tr('Confirm later'),
     };
@@ -177,9 +199,16 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
               ),
             ),
         if (!guarded && _new.isNotEmpty) ...[
-          Muted(tr('Verified with the same method as last time: {0}.', [methodLabel])),
-          if (_method == 'device_sms_otp' && (p.phone ?? '').isNotEmpty)
-            OtpPanel(phone: p.phone!, lang: l, onConfirmed: () => setState(() => _confirmed = true)),
+          Muted(tr('How this is confirmed: {0}.', [methodLabel])),
+          if (_method == 'device_sms_otp') ...[
+            OtpPanel(phone: p.phone!, lang: l, onConfirmed: () => setState(() => _codeMatched = true)),
+            VoiceHaanTile(
+              title: tr('Voice: their “haan”'),
+              value: _voice,
+              lang: l,
+              onSaved: (r) => setState(() => _voice = r),
+            ),
+          ],
           if (p.flag('read'))
             TextField(
               controller: _witness,
