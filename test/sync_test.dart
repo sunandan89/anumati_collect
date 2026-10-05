@@ -333,7 +333,10 @@ void main() {
     expect((await store.search('+91 55500 01234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: '+91');
     expect((await store.search('1234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'last digits');
     expect(await store.search('123'), isEmpty, reason: 'fewer than 4 digits is not a phone search');
-    expect((await store.search('+91 5550001')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: '+91 then part');
+    expect((await store.search('+91 5550001')).map((p) => p.ref).toSet(), {
+      'MHU-20',
+      'MHU-21',
+    }, reason: '+91 then part');
     expect((await store.search('05550001234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'leading 0');
     expect((await store.search('radha')).single.ref, 'MHU-20', reason: 'name search unchanged');
   });
