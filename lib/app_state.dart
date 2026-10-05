@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'capture/draft.dart';
+import 'core/receipt_code.dart';
 import 'core/strings.dart';
 import 'core/version.dart';
 import 'data/server.dart';
@@ -384,20 +385,25 @@ class AppState extends ChangeNotifier {
     await _afterWrite();
   }
 
-  Future<void> saveWithdrawal({
+  /// Returns the withdrawal's receipt code (the same code the server gives the signed event), for the
+  /// person's slip and SMS.
+  Future<String> saveWithdrawal({
     required String principalRef,
     required String channel,
     List<String>? purposes,
     String? paperTrail,
+    bool leave = false,
   }) async {
     final eventUuid = const Uuid().v4();
     final now = DateTime.now();
     final at = CaptureDraft.deviceTime(now);
+    final code = receiptCode(eventUuid);
     await store!.enqueue(
       kind: 'withdraw',
       eventUuid: eventUuid,
       principalRef: principalRef,
       programme: programme,
+      shortCode: code,
       payload: {
         'args': {
           'principal_ref': principalRef,
@@ -406,6 +412,7 @@ class AppState extends ChangeNotifier {
           'event_uuid': eventUuid,
           'purposes': ?purposes,
           if (paperTrail != null && paperTrail.isNotEmpty) 'paper_trail_number': paperTrail,
+          if (leave) 'leave_programme': 1,
           'device_id': deviceId,
           'device_time': at,
         },
@@ -417,12 +424,15 @@ class AppState extends ChangeNotifier {
         purposes ??
         [
           for (final p in notice?.purposes ?? const <NoticePurpose>[])
-            if (!p.essential && decided[p.code] == 'granted') p.code,
+            // Leaving stops every use of the programme, essential too, and those already off (as the server
+            // does), so an older "yes" from another phone cannot turn one back on.
+            if (leave || (!p.essential && decided[p.code] == 'granted')) p.code,
         ];
     for (final c in targets) {
       await store!.decide(principalRef, programme!, c, 'withdrawn', at, eventUuid);
     }
     await _afterWrite();
+    return code;
   }
 
   Future<void> saveRequest({

@@ -309,6 +309,67 @@ void main() {
     expect(await store.search('nobody'), isEmpty);
   });
 
+  test('find by phone: their own number or their guardian\'s, so one family phone finds everyone', () async {
+    await store.savePrincipal(
+      LocalPrincipal(ref: 'MHU-20', programme: 'MHU', fullName: 'Radha S. (fictional)', phone: '5550001234'),
+    );
+    await store.saveServerPrincipal('MHU', {
+      'principal_ref': 'MHU-21',
+      'full_name': 'Meena S. (fictional)',
+      'is_minor': 1,
+      'guardian_phone': '555 000-1234',
+      'guardian_relation': 'Mother',
+      'decisions': [],
+    });
+    await store.savePrincipal(
+      LocalPrincipal(ref: 'MHU-22', programme: 'MHU', fullName: 'Someone else (fictional)', phone: '5550009876'),
+    );
+    final family = await store.search('5550001234');
+    expect(family.map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'});
+    expect(family.firstWhere((p) => p.ref == 'MHU-20').phoneMatch('5550001234'), 'own');
+    final child = family.firstWhere((p) => p.ref == 'MHU-21');
+    expect(child.phoneMatch('5550001234'), 'guardian');
+    expect(child.guardianRelation, 'Mother');
+    expect((await store.search('+91 55500 01234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: '+91');
+    expect((await store.search('1234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'last digits');
+    expect(await store.search('123'), isEmpty, reason: 'fewer than 4 digits is not a phone search');
+    expect((await store.search('+91 5550001')).map((p) => p.ref).toSet(), {
+      'MHU-20',
+      'MHU-21',
+    }, reason: '+91 then part');
+    expect((await store.search('05550001234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'leading 0');
+    expect((await store.search('radha')).single.ref, 'MHU-20', reason: 'name search unchanged');
+  });
+
+  test('phone digits: country code and leading 0 dropped, separators ignored', () {
+    expect(phoneDigits('+91 98765-43210'), '9876543210');
+    expect(phoneDigits('+91 98765'), '98765');
+    expect(phoneDigits('098765 43210'), '9876543210');
+    expect(phoneDigits('(987) 654.3210'), '9876543210');
+  });
+
+  test('stored numbers with brackets or dots are still found', () async {
+    await store.savePrincipal(
+      LocalPrincipal(ref: 'MHU-30', programme: 'MHU', fullName: 'Asha K. (fictional)', phone: '(555) 000.4321'),
+    );
+    expect((await store.search('5550004321')).single.ref, 'MHU-30');
+  });
+
+  test('messages go to the guardian for a child, to the person otherwise', () {
+    final adult = LocalPrincipal(ref: 'A', programme: 'MHU', fullName: 'x', phone: '5550000001');
+    expect(adult.contactPhone, '5550000001');
+    final child = LocalPrincipal(
+      ref: 'C',
+      programme: 'MHU',
+      fullName: 'x',
+      flags: {'minor': true},
+      guardianPhone: '5550000002',
+    );
+    expect(child.contactPhone, '5550000002');
+    final noPhone = LocalPrincipal(ref: 'N', programme: 'MHU', fullName: 'x');
+    expect(noPhone.contactPhone, isNull);
+  });
+
   test('server errors map to park, retry later or sign in again', () {
     expect(SdkServer.classify(ValidationException('Unknown purpose')).kind, Failure.rejected);
     expect(SdkServer.classify(AuthException('expired', 401)).kind, Failure.auth);
