@@ -304,6 +304,14 @@ class LocalPrincipal {
 
   bool flag(String k) => flags[k] ?? false;
 
+  /// The number messages about them go to: for a child or an adult with a guardian, the guardian's (the
+  /// guardian decided); otherwise their own, or the guardian's if they have none. Same rule as the server.
+  String? get contactPhone {
+    final own = (phone ?? '').isEmpty ? null : phone;
+    final guardian = (guardianPhone ?? '').isEmpty ? null : guardianPhone;
+    return (flag('minor') || flag('pwd')) ? (guardian ?? own) : (own ?? guardian);
+  }
+
   /// How a typed phone number matched: 'own', 'guardian', or null (not a phone search, or no match).
   String? phoneMatch(String query) {
     final d = phoneDigits(query);

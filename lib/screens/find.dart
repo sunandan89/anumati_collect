@@ -6,6 +6,7 @@ import '../capture/draft.dart';
 import '../core/strings.dart';
 import '../data/store.dart';
 import '../widgets/common.dart';
+import 'add_purpose.dart';
 import 'home.dart';
 import 'withdraw.dart';
 
@@ -41,6 +42,37 @@ class _FindScreenState extends State<FindScreen> {
     setState(() => _rows = rows);
   }
 
+  /// Tapping a person offers both ways to change their consent; the list above already shows its status.
+  Future<void> _actions(LocalPrincipal r) => showModalBottomSheet<void>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: Text(r.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.close),
+            title: Text(tr('Stop a use or leave')),
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => WithdrawScreen(principalRef: r.ref)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.playlist_add),
+            title: Text(tr('Add a use or rejoin')),
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => AddPurposeScreen(principalRef: r.ref)));
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     return StepScaffold(
@@ -58,9 +90,7 @@ class _FindScreenState extends State<FindScreen> {
         if (_rows.isEmpty) Muted(tr('No one on this phone matches.')),
         for (final r in _rows)
           PCard(
-            onTap: widget.pickForAddPurpose
-                ? () => openAddPurpose(context, r.ref)
-                : () => Navigator.push(context, MaterialPageRoute(builder: (_) => WithdrawScreen(principalRef: r.ref))),
+            onTap: widget.pickForAddPurpose ? () => openAddPurpose(context, r.ref) : () => _actions(r),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

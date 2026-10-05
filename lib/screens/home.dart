@@ -253,8 +253,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     const SizedBox(height: 10),
                     Tile(
                       icon: Icons.close,
-                      title: tr('Stop or change consent'),
-                      subtitle: tr('Told in person, slip or letter'),
+                      title: tr('Stop a use or leave'),
+                      subtitle: tr('In person, slip or letter'),
                       onTap: () async {
                         if (!await _requireNotice(s) || !context.mounted) return;
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawScreen()));
@@ -263,8 +263,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     const SizedBox(height: 10),
                     Tile(
                       icon: Icons.playlist_add,
-                      title: tr('Ask for one more purpose'),
-                      subtitle: tr('Existing beneficiary, new use'),
+                      title: tr('Add a use or rejoin'),
+                      subtitle: tr('A new use, a change of mind, or rejoining'),
                       onTap: () async {
                         if (!await _requireNotice(s) || !context.mounted) return;
                         Navigator.push(
@@ -277,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Tile(
                       icon: Icons.search,
                       title: tr('Find beneficiary'),
-                      subtitle: tr('See consent status offline'),
+                      subtitle: tr('Status offline; stop or add a use'),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FindScreen())),
                     ),
                   ],

@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'capture/draft.dart';
+import 'core/receipt_code.dart';
 import 'core/strings.dart';
 import 'core/version.dart';
 import 'data/server.dart';
@@ -384,7 +385,9 @@ class AppState extends ChangeNotifier {
     await _afterWrite();
   }
 
-  Future<void> saveWithdrawal({
+  /// Returns the withdrawal's receipt code (the same code the server gives the signed event), for the
+  /// person's slip and SMS.
+  Future<String> saveWithdrawal({
     required String principalRef,
     required String channel,
     List<String>? purposes,
@@ -394,11 +397,13 @@ class AppState extends ChangeNotifier {
     final eventUuid = const Uuid().v4();
     final now = DateTime.now();
     final at = CaptureDraft.deviceTime(now);
+    final code = receiptCode(eventUuid);
     await store!.enqueue(
       kind: 'withdraw',
       eventUuid: eventUuid,
       principalRef: principalRef,
       programme: programme,
+      shortCode: code,
       payload: {
         'args': {
           'principal_ref': principalRef,
@@ -426,6 +431,7 @@ class AppState extends ChangeNotifier {
       await store!.decide(principalRef, programme!, c, 'withdrawn', at, eventUuid);
     }
     await _afterWrite();
+    return code;
   }
 
   Future<void> saveRequest({

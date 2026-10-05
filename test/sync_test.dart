@@ -336,6 +336,21 @@ void main() {
     expect((await store.search('radha')).single.ref, 'MHU-20', reason: 'name search unchanged');
   });
 
+  test('messages go to the guardian for a child, to the person otherwise', () {
+    final adult = LocalPrincipal(ref: 'A', programme: 'MHU', fullName: 'x', phone: '5550000001');
+    expect(adult.contactPhone, '5550000001');
+    final child = LocalPrincipal(
+      ref: 'C',
+      programme: 'MHU',
+      fullName: 'x',
+      flags: {'minor': true},
+      guardianPhone: '5550000002',
+    );
+    expect(child.contactPhone, '5550000002');
+    final noPhone = LocalPrincipal(ref: 'N', programme: 'MHU', fullName: 'x');
+    expect(noPhone.contactPhone, isNull);
+  });
+
   test('server errors map to park, retry later or sign in again', () {
     expect(SdkServer.classify(ValidationException('Unknown purpose')).kind, Failure.rejected);
     expect(SdkServer.classify(AuthException('expired', 401)).kind, Failure.auth);

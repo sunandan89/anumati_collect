@@ -71,4 +71,25 @@ void main() {
     expect(codes(plan({'screen': 'granted'}, hasPhone: false).toAsk), ['photos', 'research']);
     expect(codes(plan({'screen': 'granted'}, minor: true).toAsk), ['follow', 'photos', 'tips']);
   });
+
+  test('rejoining: the other uses wait for Yes to rejoin; No to rejoin means nothing to save', () {
+    final p = plan({'screen': 'withdrawn', 'follow': 'withdrawn', 'photos': 'refused'});
+    expect(p.rejoinCodes, ['screen']);
+    expect(p.canAnswer('screen', {}), isTrue);
+    expect(p.canAnswer('follow', {}), isFalse, reason: 'answer rejoin first');
+    expect(p.canAnswer('follow', {'screen': true}), isTrue);
+    final no = {'screen': false};
+    expect(p.declinedRejoin(no), isTrue);
+    expect(p.complete(no), isFalse);
+    final all = {for (final u in p.toAsk) u.code: true};
+    expect(p.complete(all), isTrue);
+    expect(p.complete({...all}..remove('photos')), isFalse, reason: 'every use answered');
+  });
+
+  test('not rejoining: every use can be answered at once, and No to all is a valid answer', () {
+    final p = plan({'screen': 'granted', 'follow': 'withdrawn'});
+    expect(p.rejoinCodes, isEmpty);
+    expect(p.canAnswer('follow', {}), isTrue);
+    expect(p.complete({for (final u in p.toAsk) u.code: false}), isTrue);
+  });
 }

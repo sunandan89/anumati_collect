@@ -9,7 +9,7 @@ import '../core/theme.dart';
 import '../data/store.dart';
 import '../widgets/common.dart';
 
-/// M8 Stop or change consent (spec B4, B5, section 6): as easy as giving it. Find the person, switch off
+/// M8 Stop a use or leave (spec B4, B5, section 6): as easy as giving it. Find the person, switch off
 /// the uses they no longer agree to (or leave the programme), and it takes effect on the phone at once;
 /// it is signed on the server at sync. Other requests go to the office inbox. Someone not on this phone
 /// goes to the inbox with the code they gave.
@@ -145,7 +145,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final paper = _slip ? _paper.text.trim() : '';
     if (who != null && (_off.isNotEmpty || _leave)) {
       final stopped = _leave ? _on : _on.where((p) => _off.contains(p.code)).toList();
-      await s.saveWithdrawal(
+      final code = await s.saveWithdrawal(
         principalRef: who.ref,
         channel: _channel,
         purposes: _leave ? null : _off.toList(),
@@ -153,7 +153,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
         paperTrail: paper,
       );
       if (!mounted) return;
-      await _noted(who, stopped);
+      await _noted(who, stopped, code);
     } else if (_request != null) {
       final leave = _request == 'leave';
       await s.saveRequest(
@@ -173,9 +173,11 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     if (mounted) Navigator.pop(context);
   }
 
-  /// What was stopped, for the worker to tell them, with an SMS from the worker's phone if they have one.
-  Future<void> _noted(LocalPrincipal who, List<NoticePurpose> stopped) async {
+  /// What was stopped and the withdrawal code for their slip, with an SMS from the worker's phone to them
+  /// (or, for a child or an adult with a guardian, to the guardian).
+  Future<void> _noted(LocalPrincipal who, List<NoticePurpose> stopped, String code) async {
     final names = stopped.map((p) => p.title).join(', ');
+    final to = who.contactPhone;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -185,21 +187,29 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(_leave ? tr('They have left the programme.') : tr('Stopped: {0}', [names])),
+            const SizedBox(height: 12),
+            Muted(tr('Withdrawal code — write it on their slip')),
+            SelectableText(code, style: const TextStyle(fontSize: 26, letterSpacing: 2, fontFamily: 'monospace')),
             const SizedBox(height: 8),
             Muted(tr('It takes effect on this phone now and reaches the office on sync.')),
           ],
         ),
         actions: [
-          if ((who.phone ?? '').isNotEmpty)
+          if (to != null)
             TextButton(
               onPressed: () => launchUrl(
                 Uri(
                   scheme: 'sms',
-                  path: who.phone,
+                  path: to,
                   queryParameters: {
                     'body': _leave
-                        ? trFor(who.lang, 'Anumati: you have left the programme. Your data will not be used.')
-                        : trFor(who.lang, 'Anumati: you have stopped {0}. To agree again, tell any worker.', [names]),
+                        ? trFor(who.lang, 'Anumati {0}: you have left the programme. Your data will not be used.', [
+                            code,
+                          ])
+                        : trFor(who.lang, 'Anumati {0}: you have stopped {1}. To agree again, tell any worker.', [
+                            code,
+                            names,
+                          ]),
                   },
                 ),
               ),
@@ -234,9 +244,10 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
       for (final p in _purposes)
         if (_decided[p.code] == 'withdrawn' || _decided[p.code] == 'refused') p,
     ];
+    final allOff = optionalOn.isNotEmpty && optionalOn.every((p) => _off.contains(p.code));
     final ready = (who != null && (_off.isNotEmpty || _leave)) || (_request != null && (who != null || notFound));
     return StepScaffold(
-      bar: StepBar(title: tr('Stop or change consent'), subtitle: tr('Withdrawal or request')),
+      bar: StepBar(title: tr('Stop a use or leave'), subtitle: tr('Withdrawal or request')),
       footer: FilledButton(
         style: _leave ? FilledButton.styleFrom(backgroundColor: AC.danger) : null,
         onPressed: _saving || !ready ? null : _save,
@@ -252,18 +263,6 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             prefixIcon: const Icon(Icons.search),
           ),
         ),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _slip,
-          onChanged: (v) => setState(() => _slip = v ?? false),
-          title: Text(tr('They gave a paper slip or letter')),
-          controlAffinity: ListTileControlAffinity.leading,
-        ),
-        if (_slip)
-          TextField(
-            controller: _paper,
-            decoration: InputDecoration(labelText: tr('Paper slip number (optional)')),
-          ),
         if (_matches.length > 1)
           for (final m in _matches)
             PCard(
@@ -303,25 +302,25 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             Row(
               children: [
                 Expanded(child: Muted(tr('Switch off what they no longer agree to'))),
-                TextButton(
-                  onPressed: () => setState(() {
-                    _off.addAll(optionalOn.map((p) => p.code));
-                    _leave = false;
-                    _request = null;
-                  }),
-                  child: Text(tr('Stop all')),
-                ),
+                if (!_leave)
+                  TextButton(
+                    onPressed: () => setState(() {
+                      allOff ? _off.clear() : _off.addAll(optionalOn.map((p) => p.code));
+                      _request = null;
+                    }),
+                    child: Text(allOff ? tr('Keep all') : tr('Stop all')),
+                  ),
               ],
             ),
             for (final p in optionalOn)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                value: !_off.contains(p.code),
-                onChanged: (v) => _toggle(p.code, v),
+                value: !_leave && !_off.contains(p.code),
+                onChanged: _leave ? null : (v) => _toggle(p.code, v),
                 title: Text(p.title),
                 subtitle: Text(
-                  _off.contains(p.code) ? tr('Will stop') : tr('On'),
-                  style: TextStyle(fontSize: 12, color: _off.contains(p.code) ? AC.danger : AC.ink3),
+                  _leave || _off.contains(p.code) ? tr('Will stop') : tr('On'),
+                  style: TextStyle(fontSize: 12, color: _leave || _off.contains(p.code) ? AC.danger : AC.ink3),
                 ),
               ),
           ],
@@ -331,8 +330,8 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               leading: const Icon(Icons.lock_outline),
               title: Text(p.title),
               subtitle: Text(
-                tr('Needed for the programme. To stop it, they leave the programme.'),
-                style: const TextStyle(fontSize: 12),
+                _leave ? tr('Will stop') : tr('Needed for the programme. To stop it, they leave the programme.'),
+                style: TextStyle(fontSize: 12, color: _leave ? AC.danger : null),
               ),
             ),
           if (off.isNotEmpty) Muted(tr('Already off: {0}', [off.map((p) => p.title).join(', ')])),
@@ -342,10 +341,11 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 foregroundColor: AC.danger,
                 side: BorderSide(color: AC.danger, width: _leave ? 2 : 1),
               ),
-              onPressed: _askLeave,
-              icon: Icon(_leave ? Icons.check : Icons.logout),
-              label: Text(tr('Leave the programme')),
+              onPressed: _leave ? () => setState(() => _leave = false) : _askLeave,
+              icon: Icon(_leave ? Icons.undo : Icons.logout),
+              label: Text(_leave ? tr('Don\'t leave') : tr('Leave the programme')),
             ),
+          if (_leave) Note(tr('Every use above will stop, and the programme stops serving them.'), danger: true),
         ],
         if (notFound) ...[
           Muted(tr('What do they want?')),
@@ -382,6 +382,19 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             ),
           ),
           Opt<String?>(value: 'grievance', group: _request, onChanged: (v) => _choose(v!), title: tr('Complaint')),
+          const Divider(),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _slip,
+            onChanged: (v) => setState(() => _slip = v ?? false),
+            title: Text(tr('They gave a paper slip or letter')),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+          if (_slip)
+            TextField(
+              controller: _paper,
+              decoration: InputDecoration(labelText: tr('Paper slip number (optional)')),
+            ),
         ],
       ],
     );

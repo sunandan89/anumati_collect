@@ -11,7 +11,7 @@ import '../widgets/capture_tools.dart';
 import '../widgets/common.dart';
 import '../widgets/voice_haan.dart';
 
-/// Ask for one more purpose, later (spec A2, A4, v0.4): shows what the person
+/// Add a use or rejoin, on a later visit (spec A2, A4, v0.4): shows what the person
 /// already agreed to (not asked again), only the new purpose's part of the
 /// notice, equal-weight Yes/No, and the same verification method as before.
 /// A use they withdrew or refused can be asked again (they changed their mind),
@@ -84,12 +84,26 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
   List<NoticePurpose> get _new => _plan.toAsk;
 
   bool get _ready =>
-      _new.isNotEmpty &&
-      _new.every((pu) => _answer.containsKey(pu.code)) &&
+      _plan.complete(_answer) &&
       (!_p!.flag('read') || _witness.text.trim().isNotEmpty) &&
       (_method != 'device_sms_otp' || (_codeMatched && _voice != null)) &&
       // No phone: their voice "haan" is the proof (rule A1).
       (_method != 'evidence_only' || _voice != null);
+
+  void _answerOne(String code, bool yes) => setState(() {
+    _answer[code] = yes;
+    // No to rejoining: the other uses no longer apply, so drop their answers.
+    if (!yes && _plan.rejoinCodes.contains(code)) {
+      _answer.removeWhere((c, _) => !_plan.rejoinCodes.contains(c));
+    }
+  });
+
+  void _answerAll(bool yes) => setState(() {
+    for (final pu in _new) {
+      _answer[pu.code] = yes;
+    }
+    if (!yes) _answer.removeWhere((c, _) => _plan.rejoinCodes.isNotEmpty && !_plan.rejoinCodes.contains(c));
+  });
 
   Future<void> _save() async {
     final s = context.read<AppState>();
@@ -142,7 +156,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
     };
     final guarded = p.flag('minor') || p.flag('pwd');
     return StepScaffold(
-      bar: StepBar(title: tr('Ask for one more purpose'), subtitle: tr('Later visit · {0}', [p.fullName])),
+      bar: StepBar(title: tr('Add a use or rejoin'), subtitle: tr('Later visit · {0}', [p.fullName])),
       footer: FilledButton(onPressed: _ready && !_saving && !guarded ? _save : null, child: Text(tr('Save'))),
       children: [
         PCard(
@@ -165,10 +179,30 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
         const Divider(color: AC.terra),
         if (guarded) Note(tr('A guardian must consent for this person. Take a new consent with the guardian.')),
         if (!guarded && _new.isEmpty) Note(tr('Nothing to ask: every use on this notice is already agreed.')),
+        if (!guarded && _new.length > 1) ...[
+          // Equal weight, as on the first consent; each part must still be read before it is answered.
+          Row(
+            children: [
+              for (final yes in [true, false]) ...[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _new.every((pu) => _read[pu.code] ?? false) ? () => _answerAll(yes) : null,
+                    child: Text(trFor(l, yes ? 'Yes to all' : 'No to all')),
+                  ),
+                ),
+                if (yes) const SizedBox(width: 8),
+              ],
+            ],
+          ),
+          if (!_new.every((pu) => _read[pu.code] ?? false)) Muted(tr('Read every part to them to answer all at once.')),
+        ],
+        if (!guarded && _plan.declinedRejoin(_answer))
+          Note(tr('They do not want to rejoin, so the other uses do not apply. Nothing to save.')),
         if (!guarded)
           for (final pu in _new)
             PCard(
-              borderColor: AC.leaf,
+              borderColor: _plan.canAnswer(pu.code, _answer) ? AC.leaf : AC.line,
+              color: _plan.canAnswer(pu.code, _answer) ? null : AC.surface.withValues(alpha: 0.5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -191,6 +225,7 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
                     title: Text(tr('I have read it to them'), style: const TextStyle(fontSize: 14)),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
+                  if (!_plan.canAnswer(pu.code, _answer)) Muted(tr('Answer “Rejoin the programme” first.')),
                   Row(
                     children: [
                       for (final yes in [true, false]) ...[
@@ -198,8 +233,8 @@ class _AddPurposeScreenState extends State<AddPurposeScreen> {
                           child: _answer[pu.code] == yes
                               ? FilledButton(onPressed: () {}, child: Text(trFor(l, yes ? 'Yes' : 'No')))
                               : OutlinedButton(
-                                  onPressed: (_read[pu.code] ?? false)
-                                      ? () => setState(() => _answer[pu.code] = yes)
+                                  onPressed: (_read[pu.code] ?? false) && _plan.canAnswer(pu.code, _answer)
+                                      ? () => _answerOne(pu.code, yes)
                                       : null,
                                   child: Text(trFor(l, yes ? 'Yes' : 'No')),
                                 ),
