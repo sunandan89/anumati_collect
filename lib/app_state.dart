@@ -424,8 +424,9 @@ class AppState extends ChangeNotifier {
         purposes ??
         [
           for (final p in notice?.purposes ?? const <NoticePurpose>[])
-            // Leaving the programme stops essential uses too.
-            if ((leave || !p.essential) && decided[p.code] == 'granted') p.code,
+            // Leaving stops every use of the programme, essential too, and those already off (as the server
+            // does), so an older "yes" from another phone cannot turn one back on.
+            if (leave || (!p.essential && decided[p.code] == 'granted')) p.code,
         ];
     for (final c in targets) {
       await store!.decide(principalRef, programme!, c, 'withdrawn', at, eventUuid);

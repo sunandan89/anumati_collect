@@ -61,11 +61,14 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final s = context.read<AppState>();
     final q = _query.text.trim();
     final found = q.length < 2 ? <LocalPrincipal>[] : await s.store!.search(q, programme: s.programme);
+    // A newer keystroke has searched since, or the screen has closed: drop these results.
+    if (!mounted || _query.text.trim() != q) return;
     setState(() {
       _matches = found;
-      if (found.isEmpty) _clearPerson();
+      // The person picked earlier is no longer among the results: never act on them by mistake.
+      if (_who != null && !found.any((p) => p.ref == _who!.ref)) _clearPerson();
     });
-    if (found.length == 1) await _pick(found.first);
+    if (found.length == 1 && _who?.ref != found.first.ref) await _pick(found.first);
   }
 
   void _clearPerson() {
@@ -79,6 +82,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final s = context.read<AppState>();
     final decided = await s.store!.decisions(p.ref, s.programme!);
     await _loadPurposes(p.lang);
+    if (!mounted) return;
     setState(() {
       _clearPerson();
       _who = p;

@@ -143,6 +143,15 @@ class Store {
     return rows.isEmpty ? null : LocalPrincipal.fromRow(rows.first);
   }
 
+  /// A stored phone number without the separators people type: spaces, dashes, brackets, dots.
+  static String _digitsOnly(String col) {
+    var e = col;
+    for (final c in [' ', '-', '(', ')', '.']) {
+      e = "REPLACE($e, '$c', '')";
+    }
+    return e;
+  }
+
   /// Offline search over people on this phone (captured here or downloaded): name, ID, receipt code, or
   /// phone number (their own or their guardian's, so one family phone finds the parent and the children).
   Future<List<LocalPrincipal>> search(String q, {String? programme}) async {
@@ -150,14 +159,13 @@ class Store {
     final code = q.trim().toUpperCase();
     final digits = phoneDigits(q);
     // At least 4 digits, and nothing but a phone number was typed (spaces, + or - allowed).
-    final byPhone = digits.length >= 4 && RegExp(r'^[\d\s+\-]+$').hasMatch(q.trim()) ? '%$digits%' : null;
+    final byPhone = digits.length >= 4 && RegExp(r'^[\d\s+\-().]+$').hasMatch(q.trim()) ? '%$digits%' : null;
     final rows = await db.rawQuery(
       '''SELECT DISTINCT p.* FROM principals p
          LEFT JOIN outbox o ON o.principal_ref = p.ref
          WHERE (? IS NULL OR p.programme = ?)
            AND (p.full_name LIKE ? OR p.ref LIKE ? OR o.short_code IN (?, ?) OR p.last_code IN (?, ?)
-                OR (? IS NOT NULL AND (REPLACE(REPLACE(p.phone, ' ', ''), '-', '') LIKE ?
-                                       OR REPLACE(REPLACE(p.guardian_phone, ' ', ''), '-', '') LIKE ?)))
+                OR (? IS NOT NULL AND (${_digitsOnly('p.phone')} LIKE ? OR ${_digitsOnly('p.guardian_phone')} LIKE ?)))
          ORDER BY p.created_at DESC LIMIT 50''',
       [programme, programme, like, like, code, 'AN-$code', code, 'AN-$code', byPhone, byPhone, byPhone],
     );
@@ -267,10 +275,18 @@ class Store {
 }
 
 /// The digits of a phone number as typed, without a country code or leading 0: an Indian mobile number is
-/// its last 10 digits ("+91 98765-43210" and "098765 43210" -> "9876543210").
+/// its last 10 digits ("+91 98765-43210" and "098765 43210" -> "9876543210"). A country code typed before
+/// part of a number is dropped too ("+91 98765" -> "98765").
 String phoneDigits(String s) {
-  final d = s.replaceAll(RegExp(r'\D'), '');
-  return d.length > 10 ? d.substring(d.length - 10) : d;
+  final t = s.trim();
+  var d = t.replaceAll(RegExp(r'\D'), '');
+  if (d.length > 10) return d.substring(d.length - 10);
+  if (t.startsWith('+91') && d.startsWith('91')) {
+    d = d.substring(2);
+  } else if (t.startsWith('0')) {
+    d = d.replaceFirst(RegExp('^0+'), '');
+  }
+  return d;
 }
 
 class LocalPrincipal {

@@ -333,7 +333,23 @@ void main() {
     expect((await store.search('+91 55500 01234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: '+91');
     expect((await store.search('1234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'last digits');
     expect(await store.search('123'), isEmpty, reason: 'fewer than 4 digits is not a phone search');
+    expect((await store.search('+91 5550001')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: '+91 then part');
+    expect((await store.search('05550001234')).map((p) => p.ref).toSet(), {'MHU-20', 'MHU-21'}, reason: 'leading 0');
     expect((await store.search('radha')).single.ref, 'MHU-20', reason: 'name search unchanged');
+  });
+
+  test('phone digits: country code and leading 0 dropped, separators ignored', () {
+    expect(phoneDigits('+91 98765-43210'), '9876543210');
+    expect(phoneDigits('+91 98765'), '98765');
+    expect(phoneDigits('098765 43210'), '9876543210');
+    expect(phoneDigits('(987) 654.3210'), '9876543210');
+  });
+
+  test('stored numbers with brackets or dots are still found', () async {
+    await store.savePrincipal(
+      LocalPrincipal(ref: 'MHU-30', programme: 'MHU', fullName: 'Asha K. (fictional)', phone: '(555) 000.4321'),
+    );
+    expect((await store.search('5550004321')).single.ref, 'MHU-30');
   });
 
   test('messages go to the guardian for a child, to the person otherwise', () {
