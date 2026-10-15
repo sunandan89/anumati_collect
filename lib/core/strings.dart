@@ -207,6 +207,10 @@ const Map<String, String> _hi = {
       'बहुत बार ग़लत PIN। यह फ़ोन साइन आउट हो गया और इसका डेटा मिटा दिया गया।',
   'The PINs did not match. Start again.': 'PIN मेल नहीं खाए। फिर से शुरू करें।',
   'Wrong PIN. {0} tries left.': 'ग़लत PIN। {0} कोशिशें बाकी।',
+  'Wrong PIN. {0} tries left. Try again in {1} seconds.': 'ग़लत PIN। {0} कोशिशें बाकी। {1} सेकंड बाद फिर कोशिश करें।',
+  'Too many wrong PINs. Try again in {0} seconds.': 'बहुत बार ग़लत PIN। {0} सेकंड बाद फिर कोशिश करें।',
+  'This phone is signed in to another field worker. Ask your coordinator to release it.':
+      'यह फ़ोन किसी दूसरे फ़ील्ड वर्कर के नाम से चालू है। अपने कोऑर्डिनेटर से इसे छुड़वाएँ।',
   'Choose a 4-digit PIN for this app': 'इस ऐप के लिए 4 अंकों का PIN चुनें',
   'Enter the PIN again': 'PIN फिर से डालें',
   'Enter your PIN': 'अपना PIN डालें',

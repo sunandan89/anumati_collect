@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'capture/draft.dart';
+import 'core/pin_guard.dart';
 import 'core/receipt_code.dart';
 import 'core/strings.dart';
 import 'core/version.dart';
@@ -35,11 +36,16 @@ class AppState extends ChangeNotifier {
 
   // App lock: a 4-digit PIN, asked on start and after 5 minutes away (the phone holds names and evidence).
   static const _pinKey = 'anumati.pin';
+  static const _pinTriesKey = 'anumati.pin_tries';
   static const lockAfter = Duration(minutes: 5);
-  static const maxPinTries = 5;
+  static const maxPinTries = PinGuard.maxTries;
   bool hasPin = false;
   bool locked = false;
   int pinTries = 0;
+  PinGuard _pinGuard = PinGuard();
+
+  /// How long the PIN screen must wait before the next try (after repeated wrong PINs).
+  Duration get pinWait => _pinGuard.waitLeft(DateTime.now());
   DateTime? _pausedAt;
   String userName = '';
   String deviceId = '';
@@ -77,6 +83,8 @@ class AppState extends ChangeNotifier {
       }
     }
     hasPin = (await _secure.read(key: _pinKey)) != null;
+    _pinGuard = PinGuard.decode(await _secure.read(key: _pinTriesKey));
+    pinTries = _pinGuard.tries;
     locked = signedIn && hasPin;
     if (signedIn) await _afterSignIn();
     ready = true;
@@ -173,14 +181,18 @@ class AppState extends ChangeNotifier {
   /// Wipes the phone: SQLCipher database, evidence, keys, SDK session.
   Future<void> signOut() async {
     try {
+      // Frees this phone for the next worker (best effort: offline, a coordinator can release it).
+      await server?.releaseDevice(deviceId).timeout(const Duration(seconds: 5));
+    } catch (_) {}
+    try {
       await sdk?.logout();
     } catch (_) {}
     await store?.wipe();
     await _secure.delete(key: _baseUrlKey);
     await _secure.delete(key: _pinKey);
+    await _resetPinTries();
     hasPin = false;
     locked = false;
-    pinTries = 0;
     signedIn = false;
     programmes = [];
     programme = null;
@@ -196,24 +208,35 @@ class AppState extends ChangeNotifier {
   Future<void> setPin(String pin) async {
     final salt = const Uuid().v4();
     await _secure.write(key: _pinKey, value: '$salt:${_pinHash(salt, pin)}');
+    await _resetPinTries();
     hasPin = true;
     locked = false;
-    pinTries = 0;
     notifyListeners();
   }
 
-  /// Returns true when the PIN is right. After [maxPinTries] wrong tries the phone signs out and wipes.
+  Future<void> _resetPinTries() async {
+    _pinGuard = PinGuard();
+    pinTries = 0;
+    await _secure.delete(key: _pinTriesKey);
+  }
+
+  /// Returns true when the PIN is right. Wrong tries are counted in secure storage, so restarting the
+  /// app does not reset them; after two, each wrong PIN makes the next try wait longer ([pinWait]), and
+  /// after [maxPinTries] the phone signs out and wipes. A try during the wait is not checked.
   Future<bool> unlock(String pin) async {
+    if (pinWait > Duration.zero) return false;
     final stored = await _secure.read(key: _pinKey);
     final parts = stored?.split(':');
     if (parts != null && parts.length == 2 && _pinHash(parts[0], pin) == parts[1]) {
       locked = false;
-      pinTries = 0;
+      await _resetPinTries();
       notifyListeners();
       return true;
     }
-    pinTries++;
-    if (pinTries >= maxPinTries) {
+    final wipe = _pinGuard.wrong(DateTime.now());
+    pinTries = _pinGuard.tries;
+    await _secure.write(key: _pinTriesKey, value: _pinGuard.encode());
+    if (wipe) {
       await signOut();
       lastMessage = tr('Too many wrong PINs. This phone was signed out and its data deleted.');
     }
@@ -451,6 +474,8 @@ class AppState extends ChangeNotifier {
         'args': {
           'request_type': requestType,
           'channel': channel,
+          // Made once, so a retried send is filed once on the server.
+          'client_request_id': const Uuid().v4(),
           'principal_ref': ?principalRef,
           if (note != null && note.isNotEmpty) 'payload': note,
           if (paperTrail != null && paperTrail.isNotEmpty) 'paper_trail_number': paperTrail,
@@ -464,7 +489,11 @@ class AppState extends ChangeNotifier {
   /// An adult who can't decide alone has no appointed guardian: tell the coordinator (no personal data)
   /// through the outbox, so it also works offline. Nothing about the person is stored.
   Future<void> informCoordinator() async {
-    await store!.enqueue(kind: 'guardian_needed', programme: programme, payload: {'programme': programme});
+    await store!.enqueue(
+      kind: 'guardian_needed',
+      programme: programme,
+      payload: {'programme': programme, 'client_request_id': const Uuid().v4()},
+    );
     await _afterWrite();
   }
 
@@ -682,8 +711,11 @@ class AppState extends ChangeNotifier {
         lastMessage = tr('This phone was reported lost. Its data has been deleted. Sign in again to use it.');
         return true;
       }
-    } on ServerFailure catch (_) {
+    } on ServerFailure catch (f) {
       // Older servers have no device check-in; a network or login problem shows up in the sync itself.
+      if (f.message.contains('another field worker')) {
+        lastMessage = tr('This phone is signed in to another field worker. Ask your coordinator to release it.');
+      }
     }
     return false;
   }

@@ -22,7 +22,7 @@ abstract class Server {
 
   /// Tells the programme's coordinators that an adult who can't decide alone has no lawful guardian yet.
   /// No personal data. Older servers don't have it; then nothing happens.
-  Future<void> guardianNeeded(String programme);
+  Future<void> guardianNeeded(String programme, {String? clientRequestId});
 
   /// Server-sent code (the worker never sees it): texts a code to the person's phone, or their guardian's.
   /// Returns {sent, to?, reason?}.
@@ -36,6 +36,9 @@ abstract class Server {
 
   /// Check in; returns {"status", "wipe", "voice_helper"} or null if the server is too old.
   Future<Map<String, dynamic>?> registerDevice(String deviceId, {String? appVersion, String? model, int pending = 0});
+
+  /// Sign-out: frees this phone on the server for the next worker.
+  Future<void> releaseDevice(String deviceId);
 
   /// What Sarvam heard in a short consent clip: {"transcript", "meaning": yes|no|unclear}, or null when
   /// the helper is off or the server is too old. A hint for the worker; nothing is stored.
@@ -246,8 +249,13 @@ class SdkServer implements Server {
       Map<String, dynamic>.from(await _call('anumati.api.v1.rights.submit', args) as Map);
 
   @override
-  Future<void> guardianNeeded(String programme) =>
-      _optional('anumati.api.v1.notifications.guardian_needed', {'programme': programme});
+  Future<void> guardianNeeded(String programme, {String? clientRequestId}) => _optional(
+    'anumati.api.v1.notifications.guardian_needed',
+    {'programme': programme, 'client_request_id': ?clientRequestId},
+  );
+
+  @override
+  Future<void> releaseDevice(String deviceId) => _optional('anumati.api.v1.device.sign_out', {'device_id': deviceId});
 
   @override
   Future<Map<String, dynamic>> sendCode(String consentId) async =>

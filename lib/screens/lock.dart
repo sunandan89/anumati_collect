@@ -46,6 +46,13 @@ class _LockScreenState extends State<LockScreen> {
       }
       return;
     }
+    if (s.pinWait > Duration.zero) {
+      setState(() {
+        _pin = '';
+        _error = tr('Too many wrong PINs. Try again in {0} seconds.', [s.pinWait.inSeconds + 1]);
+      });
+      return;
+    }
     setState(() => _busy = true);
     final ok = await s.unlock(_pin);
     if (!mounted) return;
@@ -53,7 +60,13 @@ class _LockScreenState extends State<LockScreen> {
       _busy = false;
       if (!ok) {
         _pin = '';
-        _error = tr('Wrong PIN. {0} tries left.', [AppState.maxPinTries - s.pinTries]);
+        final wait = s.pinWait;
+        _error = wait > Duration.zero
+            ? tr('Wrong PIN. {0} tries left. Try again in {1} seconds.', [
+                AppState.maxPinTries - s.pinTries,
+                wait.inSeconds + 1,
+              ])
+            : tr('Wrong PIN. {0} tries left.', [AppState.maxPinTries - s.pinTries]);
       }
     });
   }
