@@ -172,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                tr('{0} records on this phone', [waiting]),
+                                trCount(waiting, '{0} record on this phone', '{0} records on this phone'),
                                 style: const TextStyle(color: AC.leafInk, fontWeight: FontWeight.w600),
                               ),
                               Text(
@@ -220,7 +220,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                tr('{0} records could not be saved on the server. Open to see why.', [s.failed]),
+                                trCount(
+                                  s.failed,
+                                  '{0} record could not be saved on the server. Open to see why.',
+                                  '{0} records could not be saved on the server. Open to see why.',
+                                ),
                               ),
                             ),
                           ],
