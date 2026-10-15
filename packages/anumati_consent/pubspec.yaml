@@ -1,0 +1,22 @@
+name: anumati_consent
+description: "Anumati consent capture as a Flutter package on a host app's Frappe Mobile SDK: the SDK's DocType storage, outbox and sync carry every record."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  frappe_mobile_sdk: ^2.0.0-beta.4
+  sqflite_sqlcipher: ^3.1.0
+  flutter_secure_storage: ">=10.0.0 <12.0.0"
+  crypto: ^3.0.3
+  uuid: ^4.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

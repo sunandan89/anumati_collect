@@ -11,3 +11,4 @@ analyzer:
   exclude:
     - build/**
     - android/**
+    - packages/**
