@@ -11,8 +11,8 @@ import 'home.dart';
 import 'withdraw.dart';
 
 /// Find beneficiary: offline search over people captured on this phone, with
-/// each purpose's current status. Also used to pick someone for "Ask for one
-/// more purpose".
+/// each purpose's current status. Also used to pick someone for "Add a use or
+/// rejoin".
 class FindScreen extends StatefulWidget {
   const FindScreen({super.key, this.pickForAddPurpose = false});
   final bool pickForAddPurpose;
@@ -34,7 +34,8 @@ class _FindScreenState extends State<FindScreen> {
 
   Future<void> _load(String q) async {
     final s = context.read<AppState>();
-    _purposes = (await s.notice('en'))?.purposes ?? [];
+    // Use titles in the worker's language (the reviewed translation), like the rest of this screen.
+    _purposes = (await s.notice(Strings.uiLang))?.purposes ?? [];
     final rows = await s.store!.search(q, programme: s.programme);
     for (final r in rows) {
       _status[r.ref] = await s.store!.decisions(r.ref, r.programme);

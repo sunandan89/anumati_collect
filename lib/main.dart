@@ -154,7 +154,7 @@ class _Blocked extends StatelessWidget {
                   child: Text(tr('Update')),
                 ),
               TextButton(onPressed: s.checkAppStatus, child: Text(tr('Try again'))),
-              if (s.pending > 0) Muted(tr('{0} records on this phone', [s.pending])),
+              if (s.pending > 0) Muted(trCount(s.pending, '{0} record on this phone', '{0} records on this phone')),
             ],
           ),
         ),
