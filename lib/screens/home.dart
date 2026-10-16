@@ -9,6 +9,7 @@ import '../widgets/common.dart';
 import 'add_purpose.dart';
 import 'find.dart';
 import 'issues.dart';
+import 'sdk_test.dart';
 import 'principal.dart';
 import 'withdraw.dart';
 
@@ -140,12 +141,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         icon: const Icon(Icons.more_vert, color: AC.leafInk),
                         onSelected: (v) {
                           if (v == 'out') _signOut(s);
+                          if (v == 'sdk') {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SdkTestScreen()));
+                          }
                           if (v == 'en' || v == 'hi') s.setUiLang(v);
                         },
                         itemBuilder: (_) => [
                           for (final e in Strings.languages.entries)
                             CheckedPopupMenuItem(value: e.key, checked: Strings.uiLang == e.key, child: Text(e.value)),
                           const PopupMenuDivider(),
+                          if (SdkTestScreen.allowedFor(s))
+                            const PopupMenuItem(value: 'sdk', child: Text('SDK test (developer)')),
                           PopupMenuItem(value: 'out', child: Text(tr('Sign out'))),
                         ],
                       ),
@@ -166,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                tr('{0} records on this phone', [waiting]),
+                                trCount(waiting, '{0} record on this phone', '{0} records on this phone'),
                                 style: const TextStyle(color: AC.leafInk, fontWeight: FontWeight.w600),
                               ),
                               Text(
@@ -214,7 +220,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                tr('{0} records could not be saved on the server. Open to see why.', [s.failed]),
+                                trCount(
+                                  s.failed,
+                                  '{0} record could not be saved on the server. Open to see why.',
+                                  '{0} records could not be saved on the server. Open to see why.',
+                                ),
                               ),
                             ),
                           ],

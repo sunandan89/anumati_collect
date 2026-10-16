@@ -40,6 +40,14 @@ jobs:
       - name: Unit tests
         run: flutter test
 
+      - name: Consent package (analyze and test)
+        working-directory: packages/anumati_consent
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
+
       - name: Signing key (only when the GitHub Secrets exist)
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

@@ -40,6 +40,9 @@ String tr(String en, [List<Object>? args]) => Strings.t(en, args: args);
 /// Text shown to the beneficiary follows her language, not the worker's.
 String trFor(String lang, String en, [List<Object>? args]) => Strings.t(en, lang: lang, args: args);
 
+/// A count in a sentence: [one] when [n] is 1, else [many]. Both are keys with `{0}` for the number.
+String trCount(int n, String one, String many) => tr(n == 1 ? one : many, [n]);
+
 const Map<String, String> _hi = {
   // login
   'Sign in': 'साइन इन करें',
@@ -65,6 +68,7 @@ const Map<String, String> _hi = {
   // home
   'Namaste, {0}': 'नमस्ते, {0}',
   '{0} records on this phone': 'इस फ़ोन पर {0} रिकॉर्ड',
+  '{0} record on this phone': 'इस फ़ोन पर {0} रिकॉर्ड',
   'Sync when you have data': 'डेटा मिलने पर सिंक करें',
   'Everything is signed on the server': 'सब कुछ सर्वर पर हस्ताक्षरित है',
   'Sync': 'सिंक',
@@ -88,6 +92,8 @@ const Map<String, String> _hi = {
   'Needs attention': 'ध्यान दें',
   '{0} records could not be saved on the server. Open to see why.':
       '{0} रिकॉर्ड सर्वर पर सेव नहीं हो सके। कारण देखने के लिए खोलें।',
+  '{0} record could not be saved on the server. Open to see why.':
+      '{0} रिकॉर्ड सर्वर पर सेव नहीं हो सका। कारण देखने के लिए खोलें।',
   'Sync finished': 'सिंक पूरा हुआ',
   'No internet. Records stay safe on this phone.': 'इंटरनेट नहीं है। रिकॉर्ड इस फ़ोन पर सुरक्षित हैं।',
   'Your session has ended. Sign in again to sync.': 'आपका सत्र समाप्त हो गया। सिंक के लिए फिर से साइन इन करें।',
