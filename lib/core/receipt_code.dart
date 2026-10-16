@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 
 const _b32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-/// The receipt code printed on the slip, e.g. `AN-7K2Q9C`.
+/// The receipt code printed on the slip, e.g. `AN-7K2Q4C`.
 ///
 /// Must match the server exactly (`anumati.api.v1.consent.short_code`): the
 /// first 30 bits of sha256(event_uuid), base32. It depends only on the
