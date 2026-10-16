@@ -93,7 +93,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
   String get _channel => _slip ? 'slip' : 'field_worker';
 
-  /// What was typed, if it looks like a receipt code (AN-7K2Q9C or 7K2Q9C): the office uses it to find them.
+  /// What was typed, if it looks like a receipt code (AN-7K2Q4C or 7K2Q4C): the office uses it to find them.
   String? get _code {
     final q = _query.text.trim().toUpperCase();
     return RegExp(r'^(AN-)?[A-Z2-7]{6}$').hasMatch(q) ? (q.startsWith('AN-') ? q : 'AN-$q') : null;
