@@ -41,7 +41,7 @@ class FakeServer implements Server {
   Future<Map<String, dynamic>> checkCode(String consentId, String code) async => {'confirmed': code == '123456'};
 
   @override
-  Future<void> guardianNeeded(String programme) async {
+  Future<void> guardianNeeded(String programme, {String? clientRequestId}) async {
     calls.add('guardian_needed');
     told.add(programme);
   }
@@ -94,6 +94,9 @@ class FakeServer implements Server {
     String? model,
     int pending = 0,
   }) async => {'status': 'active', 'wipe': false};
+
+  @override
+  Future<void> releaseDevice(String deviceId) async => calls.add('release');
 
   @override
   Future<Map<String, dynamic>?> hear(List<int> clip, String? language) async => null;
