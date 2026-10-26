@@ -40,7 +40,7 @@ void main() {
       ),
     );
     final (doctype, row) = data.saved.single;
-    expect(doctype, 'Consent Event');
+    expect(doctype, 'Anumati Consent Event');
     expect(row['mobile_uuid'], receipt.eventUuid);
     expect(receipt.code, receiptCode(receipt.eventUuid));
     expect(row['purposes_granted'], '["screen","follow"]');
@@ -61,7 +61,7 @@ void main() {
 
   test('status reads the Consent State the SDK pulled', () async {
     final data = FakeData()
-      ..rows['Consent State'] = [
+      ..rows['Anumati Consent State'] = [
         {'status': 'granted'},
       ];
     expect(await AnumatiConsent(data).status('DP-00017', 'MCH', 'follow'), 'granted');

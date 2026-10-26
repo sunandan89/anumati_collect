@@ -93,7 +93,7 @@ class SdkServer implements Server {
   @override
   Future<List<Map<String, dynamic>>> programmes() async {
     final rows = await _call('frappe.client.get_list', {
-      'doctype': 'Programme',
+      'doctype': 'Anumati Programme',
       'fields': jsonEncode(['name', 'programme_name', 'status']),
       'filters': jsonEncode([
         ['status', '!=', 'Paused'],
@@ -105,7 +105,7 @@ class SdkServer implements Server {
 
   @override
   Future<Map<String, dynamic>> programme(String code) async {
-    final doc = await _call('frappe.client.get', {'doctype': 'Programme', 'name': code}, get: true);
+    final doc = await _call('frappe.client.get', {'doctype': 'Anumati Programme', 'name': code}, get: true);
     return Map<String, dynamic>.from(doc as Map);
   }
 
@@ -142,7 +142,7 @@ class SdkServer implements Server {
   @override
   Future<String?> principalName(String ref) async {
     final out = await _call('frappe.client.get_value', {
-      'doctype': 'Data Principal',
+      'doctype': 'Anumati Data Principal',
       'filters': jsonEncode({'principal_ref': ref}),
       'fieldname': 'name',
     }, get: true);
@@ -152,7 +152,7 @@ class SdkServer implements Server {
   @override
   Future<String> guardianLink(Map<String, dynamic> doc) async {
     final existing = await _call('frappe.client.get_list', {
-      'doctype': 'Guardian Link',
+      'doctype': 'Anumati Guardian Link',
       'filters': jsonEncode({'principal': doc['principal'], 'guardian': doc['guardian']}),
       'fields': jsonEncode(['name']),
       'limit_page_length': 1,
@@ -161,7 +161,7 @@ class SdkServer implements Server {
       return existing.first['name'] as String;
     }
     final out = await _call('frappe.client.insert', {
-      'doc': {'doctype': 'Guardian Link', ...doc},
+      'doc': {'doctype': 'Anumati Guardian Link', ...doc},
     });
     return (out as Map)['name'] as String;
   }
@@ -174,7 +174,7 @@ class SdkServer implements Server {
         'file',
         file,
         filename: fileName,
-        fields: {'is_private': '1', 'doctype': 'Data Principal', 'docname': principalName},
+        fields: {'is_private': '1', 'doctype': 'Anumati Data Principal', 'docname': principalName},
       );
       return ((body as Map)['message'] as Map)['file_url'] as String;
     } catch (e) {
