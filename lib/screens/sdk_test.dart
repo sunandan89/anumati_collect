@@ -132,8 +132,8 @@ class _SdkTestScreenState extends State<SdkTestScreen> {
           const Text(
             'Saves one consent through the new consent package and this app\'s Frappe Mobile SDK, pushes it with '
             'the SDK\'s own sync, and reads it back. It writes a real consent: use a test beneficiary.\n\n'
-            'Needs on the site: Mobile Configuration lists Consent Event (and Consent State, Programme, Purpose, '
-            'Notice Template), and this user has the Field Worker role.',
+            'Needs on the site: Mobile Configuration lists Anumati Consent Event (and Anumati Consent State, '
+            'Anumati Programme, Anumati Purpose, Anumati Notice Template), and this user has the Field Worker role.',
           ),
           const SizedBox(height: 12),
           Text('Programme: ${s.programme ?? '(none chosen)'}'),

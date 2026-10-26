@@ -27,8 +27,8 @@ final receipt = await consent.record(ConsentDecision(
 print(receipt.code); // write it on the slip
 ```
 
-**Server set-up:** in Mobile Configuration, add Consent Event (and Consent State, Programme, Purpose,
-Notice Template for downloads) to the mobile forms, so Mobile Control adds the `mobile_uuid` field and
+**Server set-up:** in Mobile Configuration, add Anumati Consent Event (and Anumati Consent State,
+Anumati Programme, Anumati Purpose, Anumati Notice Template for downloads) to the mobile forms, so Mobile Control adds the `mobile_uuid` field and
 the SDK syncs them.
 
 **Not yet:** people's names and phones (the SDK skips encrypted fields until the "personal fields"

@@ -68,7 +68,7 @@ class AnumatiConsent {
   /// Attaches to the host's SDK: its login, database, outbox and sync.
   factory AnumatiConsent.attach(FrappeSDK sdk) => AnumatiConsent(SdkConsentData(sdk));
 
-  static const doctype = 'Consent Event';
+  static const doctype = 'Anumati Consent Event';
 
   final ConsentData data;
   final Uuid _uuid;
@@ -114,7 +114,7 @@ class AnumatiConsent {
   /// withdrawn, refused, or not_asked. A decision saved on this phone but not yet synced is not in it.
   Future<String> status(String principal, String programme, String purpose) async {
     final rows = await data.list(
-      'Consent State',
+      'Anumati Consent State',
       filters: [
         ['principal', '=', principal],
         ['purpose', '=', '$programme-$purpose'],
